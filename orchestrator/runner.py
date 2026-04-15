@@ -54,13 +54,22 @@ class StrategyResult(BaseModel):
     errors: list[str]
 
 
-async def run_strategy(request: StrategyRequest) -> StrategyResult:
+async def run_strategy(request: StrategyRequest, progress_callback=None) -> StrategyResult:
     """
     Execute the full multi-agent pipeline for a strategy request.
     Returns a StrategyResult with all agent outputs and reasoning chains.
     """
     run_id = f"run_{uuid.uuid4().hex[:10]}"
     start = datetime.utcnow()
+
+    # WebSocket progress emitter (optional)
+    async def emit(event_type: str, step: str = "", duration_ms: float = 0, data: dict = None):
+        if progress_callback is None:
+            return
+        if event_type == "step_start":
+            await progress_callback.emit_step_start(run_id, step)
+        elif event_type == "step_complete":
+            await progress_callback.emit_step_complete(run_id, step, duration_ms, data)
 
     state = PipelineState(
         run_id=run_id,
@@ -75,15 +84,20 @@ async def run_strategy(request: StrategyRequest) -> StrategyResult:
     # ── Define pipeline nodes ──────────────────────────────────────────────────
 
     async def node_ingest(s: PipelineState) -> PipelineState:
+        await emit("step_start", "ingest")
+        _t = datetime.utcnow()
         s.ingestion_result = await run_ingestion(
             symbols=s.symbols,
             lookback_days=request.lookback_days,
             news_lookback_hours=request.news_lookback_hours,
             persist=request.persist,
         )
+        await emit("step_complete", "ingest", (datetime.utcnow() - _t).total_seconds() * 1000)
         return s
 
     async def node_macro(s: PipelineState) -> PipelineState:
+        await emit("step_start", "macro")
+        _t = datetime.utcnow()
         agent = MacroAgent(run_id=s.run_id)
         s.macro_output = await agent.run(
             MacroAgentInput(
@@ -92,9 +106,12 @@ async def run_strategy(request: StrategyRequest) -> StrategyResult:
                 lookback_days=request.lookback_days,
             )
         )
+        await emit("step_complete", "macro", (datetime.utcnow() - _t).total_seconds() * 1000)
         return s
 
     async def node_quant(s: PipelineState) -> PipelineState:
+        await emit("step_start", "quant")
+        _t = datetime.utcnow()
         agent = QuantAgent(run_id=s.run_id)
         price_data = {
             sym: df.reset_index().rename(columns={"index": "timestamp"}).to_dict("records")
@@ -106,9 +123,12 @@ async def run_strategy(request: StrategyRequest) -> StrategyResult:
                 price_data=price_data,
             )
         )
+        await emit("step_complete", "quant", (datetime.utcnow() - _t).total_seconds() * 1000)
         return s
 
     async def node_sentiment(s: PipelineState) -> PipelineState:
+        await emit("step_start", "sentiment")
+        _t = datetime.utcnow()
         agent = SentimentAgent(run_id=s.run_id)
         news_articles = {
             sym: [
@@ -131,9 +151,12 @@ async def run_strategy(request: StrategyRequest) -> StrategyResult:
                 lookback_hours=request.news_lookback_hours,
             )
         )
+        await emit("step_complete", "sentiment", (datetime.utcnow() - _t).total_seconds() * 1000)
         return s
 
     async def node_aggregate(s: PipelineState) -> PipelineState:
+        await emit("step_start", "aggregate")
+        _t = datetime.utcnow()
         s.aggregation_result = await aggregate_signals(
             macro_output=s.macro_output,
             quant_output=s.quant_output,
@@ -141,9 +164,12 @@ async def run_strategy(request: StrategyRequest) -> StrategyResult:
             run_id=s.run_id,
             top_n=request.top_n,
         )
+        await emit("step_complete", "aggregate", (datetime.utcnow() - _t).total_seconds() * 1000)
         return s
 
     async def node_risk(s: PipelineState) -> PipelineState:
+        await emit("step_start", "risk")
+        _t = datetime.utcnow()
         portfolio_returns = await memory.get_portfolio_returns()
         equity_curve = await memory.get_portfolio_equity_curve()
 
@@ -158,12 +184,16 @@ async def run_strategy(request: StrategyRequest) -> StrategyResult:
                 risk_tolerance=s.risk_tolerance,
             )
         )
+        await emit("step_complete", "risk", (datetime.utcnow() - _t).total_seconds() * 1000)
         return s
 
     async def node_execute(s: PipelineState) -> PipelineState:
+        await emit("step_start", "execute")
+        _t = datetime.utcnow()
         # Only execute if risk manager approved
         if not s.risk_output.approved:
             logger.warning(f"Risk manager rejected allocation. Skipping execution.")
+            await emit("step_complete", "execute", (datetime.utcnow() - _t).total_seconds() * 1000, {"skipped": True})
             return s
 
         current_positions = await memory.get_current_positions()
@@ -198,6 +228,7 @@ async def run_strategy(request: StrategyRequest) -> StrategyResult:
 
         # Update memory with new portfolio value
         await memory.update_portfolio_value(s.execution_output.portfolio_value)
+        await emit("step_complete", "execute", (datetime.utcnow() - _t).total_seconds() * 1000)
         return s
 
     # ── Build and run DAG ──────────────────────────────────────────────────────

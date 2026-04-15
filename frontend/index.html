@@ -160,6 +160,12 @@
 
     /* Crosshair plugin styles */
     canvas { display: block; }
+
+    /* Connection status indicator */
+    .conn-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .conn-online { background: #22c55e; }
+    .conn-offline { background: #ef4444; }
+    .conn-connecting { background: #f59e0b; animation: pulse-live 1.5s ease-in-out infinite; }
   </style>
 </head>
 <body class="bg-slate-950 text-white min-h-screen">
@@ -191,8 +197,8 @@
         </nav>
         <span class="text-xs text-slate-400" id="liveClock">Last updated: --:--:--</span>
         <div class="flex items-center gap-2 bg-slate-900 border border-slate-700/60 rounded-full px-3 py-1.5">
-          <span class="w-2 h-2 rounded-full bg-green-500 pulse-live"></span>
-          <span class="text-xs font-semibold text-green-400 uppercase tracking-wider">Live</span>
+          <span class="conn-indicator" id="connStatus"></span>
+          <span class="text-xs font-semibold uppercase tracking-wider" id="connLabel">Connecting</span>
         </div>
       </div>
     </div>
@@ -341,18 +347,18 @@
       </section>
 
       <!-- MARKET REGIME BANNER -->
-      <section class="bg-gradient-to-r from-green-500/8 via-slate-900 to-green-500/8 border border-green-500/20 rounded-xl p-5">
+      <section id="regimeBanner" class="bg-gradient-to-r from-green-500/8 via-slate-900 to-green-500/8 border border-green-500/20 rounded-xl p-5">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div class="flex items-center gap-4">
-            <div class="bg-green-500/15 border border-green-500/30 rounded-full px-5 py-2 flex items-center gap-2">
+            <div id="regimeBadge" class="bg-green-500/15 border border-green-500/30 rounded-full px-5 py-2 flex items-center gap-2">
               <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
-              <span class="text-sm font-bold text-green-400 uppercase tracking-wider">Bull Market</span>
+              <span id="regimeLabel" class="text-sm font-bold text-green-400 uppercase tracking-wider">Bull Market</span>
             </div>
             <div>
-              <p class="text-sm text-slate-300">Confidence: <span class="font-semibold text-white">72%</span> <span class="text-slate-500">|</span> Based on 7 macro indicators</p>
+              <p class="text-sm text-slate-300">Confidence: <span class="font-semibold text-white" id="regimeConfidence">72%</span> <span class="text-slate-500">|</span> Based on 7 macro indicators</p>
             </div>
           </div>
-          <div class="flex items-center gap-6 text-xs">
+          <div class="flex items-center gap-6 text-xs" id="regimeIndicators">
             <div class="flex items-center gap-2"><span class="text-slate-400">VIX</span><span class="font-semibold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">17.5</span></div>
             <div class="flex items-center gap-2"><span class="text-slate-400">Yield Curve</span><span class="font-semibold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">+0.35bps</span></div>
             <div class="flex items-center gap-2"><span class="text-slate-400">GDP</span><span class="font-semibold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">2.1%</span></div>
@@ -572,7 +578,7 @@
             <div>
               <label class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 block">Rebalance Frequency</label>
               <select id="btRebalance" class="w-full bg-slate-800 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/60">
-                <option>Daily</option><option selected>Weekly</option><option>Monthly</option><option>Quarterly</option>
+                <option value="daily">Daily</option><option value="weekly" selected>Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option>
               </select>
             </div>
             <div>
@@ -638,6 +644,42 @@
 
     <!-- ==================== SETTINGS TAB ==================== -->
     <div id="tab-settings" class="tab-content space-y-8">
+      <!-- API Connection Status -->
+      <section>
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-6">
+          <h2 class="text-base font-semibold text-white mb-5">API Connection</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+              <span class="conn-indicator" id="settApiStatus"></span>
+              <div>
+                <p class="text-sm font-medium text-white">Backend API</p>
+                <p class="text-xs text-slate-400" id="settApiUrl">http://localhost:8000</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+              <span class="conn-indicator" id="settWsStatus"></span>
+              <div>
+                <p class="text-sm font-medium text-white">WebSocket</p>
+                <p class="text-xs text-slate-400">Pipeline progress stream</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+              <span class="conn-indicator" id="settDbStatus"></span>
+              <div>
+                <p class="text-sm font-medium text-white">MongoDB</p>
+                <p class="text-xs text-slate-400">hedgefund database</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 block">API Base URL</label>
+            <div class="flex gap-3">
+              <input type="text" id="apiUrlInput" value="" class="flex-1 bg-slate-800 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/60" placeholder="http://localhost:8000" />
+              <button onclick="updateApiUrl()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg transition-all duration-200 text-sm">Connect</button>
+            </div>
+          </div>
+        </div>
+      </section>
       <!-- Agent Configuration -->
       <section>
         <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-6">
@@ -720,99 +762,199 @@
 
 <script>
 // =============================================
-// DATA
+// API CLIENT — connects to FastAPI backend
 // =============================================
 
-const positions = [
-  { symbol: 'AAPL', shares: 1200, avgCost: 178.50, currentPrice: 195.20 },
-  { symbol: 'MSFT', shares: 580, avgCost: 380.00, currentPrice: 415.80 },
-  { symbol: 'GOOGL', shares: 520, avgCost: 140.25, currentPrice: 152.40 },
-  { symbol: 'NVDA', shares: 300, avgCost: 720.00, currentPrice: 890.50 },
-  { symbol: 'META', shares: 210, avgCost: 490.00, currentPrice: 520.30 },
-];
+// Detect API base URL: same origin if served by FastAPI, else localhost:8000
+// Safe storage wrapper (falls back to in-memory when localStorage unavailable)
+const safeStorage = (() => {
+  const mem = {};
+  try { localStorage.setItem('_test', '1'); localStorage.removeItem('_test'); return localStorage; }
+  catch { return { getItem: k => mem[k] || null, setItem: (k,v) => { mem[k] = v; }, removeItem: k => { delete mem[k]; } }; }
+})();
 
-const agents = [
-  { name: 'Macro Agent', icon: '🌐', output: 'BULL (72% confidence)', color: 'green', time: '14:32 UTC' },
-  { name: 'Quant Agent', icon: '📊', output: 'Top pick: NVDA (score: 1.24)', color: 'blue', time: '14:31 UTC' },
-  { name: 'Sentiment Agent', icon: '💬', output: 'AAPL: Positive (0.78)', color: 'purple', time: '14:30 UTC' },
-  { name: 'Risk Manager', icon: '🛡️', output: 'All constraints passed ✓', color: 'green', time: '14:32 UTC' },
-  { name: 'Execution Agent', icon: '⚡', output: '3 trades executed', color: 'blue', time: '14:32 UTC' },
-  { name: 'Signal Aggregator', icon: '🔗', output: '5/8 assets: BUY signal', color: 'purple', time: '14:32 UTC' },
-];
+const API_BASE = (() => {
+  if (window.location.port === '8000' || window.location.pathname === '/') {
+    const saved = safeStorage.getItem('hf_api_url');
+    return saved || window.location.origin;
+  }
+  return safeStorage.getItem('hf_api_url') || 'http://localhost:8000';
+})();
 
-const allReasoningData = {
-  AAPL: [
-    { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime detected (confidence: 72%). VIX=17.5, below 20 threshold. Yield curve positive at +0.35bps. GDP growth at 2.1% QoQ.' },
-    { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+1.05, Rank #1/8 (95th pct). Top factors: momentum_12m=+1.20, earnings_surprise=+0.85, relative_strength=+0.92.' },
-    { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Positive (score=+0.72, 12 articles). Key themes: strong iPhone demand, services revenue acceleration, AI integration momentum.' },
-    { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)×bull + quant(50%)×+1.05 + sentiment(30%)×+0.72 → final_score=+0.81 → STRONG_BUY' },
-    { step: 5, agent: 'Risk', color: '#06b6d4', text: '✓ All constraints passed. Sharpe=1.42, VaR(95%)=$12,400, MaxDD=8.3%. Position size within limits.' },
+let apiBase = API_BASE;
+let apiConnected = false;
+let wsConnected = false;
+
+function getWsBase() {
+  return apiBase.replace(/^http/, 'ws');
+}
+
+async function apiFetch(path, options = {}) {
+  try {
+    const url = `${apiBase}${path}`;
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  } catch (e) {
+    addLogEntry(`API error: ${e.message}`, 'error');
+    throw e;
+  }
+}
+
+async function checkHealth() {
+  try {
+    const data = await apiFetch('/health');
+    setConnectionStatus('online', `API v${data.version}`);
+    apiConnected = true;
+    addLogEntry(`Connected to API (${data.env} v${data.version})`, 'success');
+    updateSettingsConnStatus(true);
+    return true;
+  } catch {
+    setConnectionStatus('offline', 'API Offline');
+    apiConnected = false;
+    addLogEntry('API unreachable — using demo data', 'warning');
+    updateSettingsConnStatus(false);
+    return false;
+  }
+}
+
+function setConnectionStatus(status, label) {
+  const el = document.getElementById('connStatus');
+  const lbl = document.getElementById('connLabel');
+  el.className = `conn-indicator conn-${status}`;
+  lbl.textContent = label;
+  lbl.className = `text-xs font-semibold uppercase tracking-wider ${
+    status === 'online' ? 'text-green-400' : status === 'offline' ? 'text-red-400' : 'text-amber-400'
+  }`;
+}
+
+function updateSettingsConnStatus(online) {
+  const apiEl = document.getElementById('settApiStatus');
+  const wsEl = document.getElementById('settWsStatus');
+  const dbEl = document.getElementById('settDbStatus');
+  if (apiEl) apiEl.className = `conn-indicator ${online ? 'conn-online' : 'conn-offline'}`;
+  if (wsEl) wsEl.className = `conn-indicator ${online ? 'conn-online' : 'conn-offline'}`;
+  if (dbEl) dbEl.className = `conn-indicator ${online ? 'conn-online' : 'conn-offline'}`;
+}
+
+function updateApiUrl() {
+  const input = document.getElementById('apiUrlInput');
+  const newUrl = input.value.trim().replace(/\/$/, '');
+  if (newUrl) {
+    apiBase = newUrl;
+    safeStorage.setItem('hf_api_url', newUrl);
+    checkHealth();
+    showToast('Connecting to ' + newUrl, 'info');
+  }
+}
+
+// =============================================
+// MOCK DATA (fallback when API unavailable)
+// =============================================
+
+const MOCK = {
+  positions: [
+    { symbol: 'AAPL', shares: 1200, avgCost: 178.50, currentPrice: 195.20 },
+    { symbol: 'MSFT', shares: 580, avgCost: 380.00, currentPrice: 415.80 },
+    { symbol: 'GOOGL', shares: 520, avgCost: 140.25, currentPrice: 152.40 },
+    { symbol: 'NVDA', shares: 300, avgCost: 720.00, currentPrice: 890.50 },
+    { symbol: 'META', shares: 210, avgCost: 490.00, currentPrice: 520.30 },
   ],
-  MSFT: [
-    { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). Cloud spending cycle intact. Enterprise capex guidance positive across major CSPs.' },
-    { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+0.88, Rank #3/8. Factors: momentum_12m=+0.95, earnings_surprise=+1.10, FCF_yield=+0.72.' },
-    { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Positive (score=+0.65, 9 articles). Azure growth reacceleration, Copilot adoption, LinkedIn revenue beat.' },
-    { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)×bull + quant(50%)×+0.88 + sentiment(30%)×+0.65 → final_score=+0.74 → BUY' },
-    { step: 5, agent: 'Risk', color: '#06b6d4', text: '✓ Passed. Current weight 23.5%, below max 30%. Correlation with GOOGL=0.72 (acceptable).' },
+  agents: [
+    { name: 'Macro Agent', icon: '\u{1F310}', output: 'BULL (72% confidence)', color: 'green', time: '14:32 UTC' },
+    { name: 'Quant Agent', icon: '\u{1F4CA}', output: 'Top pick: NVDA (score: 1.24)', color: 'blue', time: '14:31 UTC' },
+    { name: 'Sentiment Agent', icon: '\u{1F4AC}', output: 'AAPL: Positive (0.78)', color: 'purple', time: '14:30 UTC' },
+    { name: 'Risk Manager', icon: '\u{1F6E1}\u{FE0F}', output: 'All constraints passed \u2713', color: 'green', time: '14:32 UTC' },
+    { name: 'Execution Agent', icon: '\u26A1', output: '3 trades executed', color: 'blue', time: '14:32 UTC' },
+    { name: 'Signal Aggregator', icon: '\u{1F517}', output: '5/8 assets: BUY signal', color: 'purple', time: '14:32 UTC' },
   ],
-  GOOGL: [
-    { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). Digital ad spending recovering. Search market share stable despite AI competition.' },
-    { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+0.62, Rank #5/8. Factors: value_score=+1.05, momentum_12m=+0.45, earnings_revision=+0.38.' },
-    { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Neutral-positive (score=+0.35, 8 articles). Mixed: Gemini progress positive, but regulatory headwinds remain.' },
-    { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)×bull + quant(50%)×+0.62 + sentiment(30%)×+0.35 → final_score=+0.52 → HOLD' },
-    { step: 5, agent: 'Risk', color: '#06b6d4', text: '✓ Passed. Weight 7.7%, well within limits. Low concentration risk.' },
+  reasoning: {
+    AAPL: [
+      { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime detected (confidence: 72%). VIX=17.5, below 20 threshold. Yield curve positive at +0.35bps. GDP growth at 2.1% QoQ.' },
+      { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+1.05, Rank #1/8 (95th pct). Top factors: momentum_12m=+1.20, earnings_surprise=+0.85, relative_strength=+0.92.' },
+      { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Positive (score=+0.72, 12 articles). Key themes: strong iPhone demand, services revenue acceleration, AI integration momentum.' },
+      { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)\u00D7bull + quant(50%)\u00D7+1.05 + sentiment(30%)\u00D7+0.72 \u2192 final_score=+0.81 \u2192 STRONG_BUY' },
+      { step: 5, agent: 'Risk', color: '#06b6d4', text: '\u2713 All constraints passed. Sharpe=1.42, VaR(95%)=$12,400, MaxDD=8.3%. Position size within limits.' },
+    ],
+    MSFT: [
+      { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). Cloud spending cycle intact. Enterprise capex guidance positive across major CSPs.' },
+      { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+0.88, Rank #3/8. Factors: momentum_12m=+0.95, earnings_surprise=+1.10, FCF_yield=+0.72.' },
+      { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Positive (score=+0.65, 9 articles). Azure growth reacceleration, Copilot adoption, LinkedIn revenue beat.' },
+      { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)\u00D7bull + quant(50%)\u00D7+0.88 + sentiment(30%)\u00D7+0.65 \u2192 final_score=+0.74 \u2192 BUY' },
+      { step: 5, agent: 'Risk', color: '#06b6d4', text: '\u2713 Passed. Current weight 23.5%, below max 30%. Correlation with GOOGL=0.72 (acceptable).' },
+    ],
+    GOOGL: [
+      { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). Digital ad spending recovering. Search market share stable despite AI competition.' },
+      { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+0.62, Rank #5/8. Factors: value_score=+1.05, momentum_12m=+0.45, earnings_revision=+0.38.' },
+      { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Neutral-positive (score=+0.35, 8 articles). Mixed: Gemini progress positive, but regulatory headwinds remain.' },
+      { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)\u00D7bull + quant(50%)\u00D7+0.62 + sentiment(30%)\u00D7+0.35 \u2192 final_score=+0.52 \u2192 HOLD' },
+      { step: 5, agent: 'Risk', color: '#06b6d4', text: '\u2713 Passed. Weight 7.7%, well within limits. Low concentration risk.' },
+    ],
+    NVDA: [
+      { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). AI infrastructure capex cycle accelerating. Hyperscaler orders at record levels.' },
+      { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+1.24, Rank #1/8 (99th pct). Factors: momentum_12m=+1.80, earnings_surprise=+2.10, revenue_growth=+1.45.' },
+      { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Strong positive (score=+0.91, 15 articles). Blackwell demand exceeding supply, data center revenue record.' },
+      { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)\u00D7bull + quant(50%)\u00D7+1.24 + sentiment(30%)\u00D7+0.91 \u2192 final_score=+1.01 \u2192 STRONG_BUY' },
+      { step: 5, agent: 'Risk', color: '#06b6d4', text: '\u26A0 Caution: high volatility (\u03C3=3.2%). Position sizing reduced 15% per vol-adjusted rule. Otherwise OK.' },
+    ],
+    META: [
+      { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). Social media ad revenue cyclically strong. Consumer engagement metrics healthy.' },
+      { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+0.75, Rank #4/8. Factors: ROIC=+1.15, earnings_surprise=+0.60, momentum_6m=+0.55.' },
+      { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Positive (score=+0.58, 10 articles). Reels monetization improving, Reality Labs losses narrowing, strong Instagram growth.' },
+      { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)\u00D7bull + quant(50%)\u00D7+0.75 + sentiment(30%)\u00D7+0.58 \u2192 final_score=+0.66 \u2192 BUY' },
+      { step: 5, agent: 'Risk', color: '#06b6d4', text: '\u2713 Passed. Weight 10.7%, within limits. Rebalance triggered: trimmed 15 shares last cycle.' },
+    ],
+  },
+  trades: [
+    { date: '2026-04-15', symbol: 'NVDA', side: 'BUY', qty: 10, price: 885.20, slippage: 0.12, commission: 1.50, reasoning: 'Quant score breakout, momentum signal' },
+    { date: '2026-04-14', symbol: 'META', side: 'SELL', qty: 15, price: 522.10, slippage: 0.08, commission: 1.20, reasoning: 'Rebalance: weight exceeded 30%' },
+    { date: '2026-04-12', symbol: 'AAPL', side: 'BUY', qty: 20, price: 192.50, slippage: 0.05, commission: 0.80, reasoning: 'Strong sentiment + earnings beat' },
+    { date: '2026-04-10', symbol: 'GOOGL', side: 'BUY', qty: 15, price: 149.80, slippage: 0.10, commission: 0.90, reasoning: 'Undervalued, quant score rising' },
+    { date: '2026-04-08', symbol: 'MSFT', side: 'SELL', qty: 10, price: 418.40, slippage: 0.15, commission: 1.10, reasoning: 'Profit taking, RSI overbought' },
+    { date: '2026-04-05', symbol: 'NVDA', side: 'BUY', qty: 5, price: 870.00, slippage: 0.20, commission: 1.00, reasoning: 'AI infrastructure demand catalyst' },
+    { date: '2026-04-03', symbol: 'AAPL', side: 'BUY', qty: 25, price: 188.30, slippage: 0.03, commission: 0.70, reasoning: 'Sentiment breakout, 12 positive articles' },
+    { date: '2026-04-01', symbol: 'META', side: 'BUY', qty: 20, price: 498.20, slippage: 0.09, commission: 1.30, reasoning: 'Ad revenue growth signal' },
+    { date: '2026-03-28', symbol: 'GOOGL', side: 'SELL', qty: 10, price: 145.60, slippage: 0.07, commission: 0.60, reasoning: 'Rotation to higher momentum names' },
+    { date: '2026-03-25', symbol: 'MSFT', side: 'BUY', qty: 15, price: 375.00, slippage: 0.11, commission: 1.40, reasoning: 'Cloud growth reaccelerating' },
   ],
-  NVDA: [
-    { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). AI infrastructure capex cycle accelerating. Hyperscaler orders at record levels.' },
-    { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+1.24, Rank #1/8 (99th pct). Factors: momentum_12m=+1.80, earnings_surprise=+2.10, revenue_growth=+1.45.' },
-    { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Strong positive (score=+0.91, 15 articles). Blackwell demand exceeding supply, data center revenue record.' },
-    { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)×bull + quant(50%)×+1.24 + sentiment(30%)×+0.91 → final_score=+1.01 → STRONG_BUY' },
-    { step: 5, agent: 'Risk', color: '#06b6d4', text: '⚠ Caution: high volatility (σ=3.2%). Position sizing reduced 15% per vol-adjusted rule. Otherwise OK.' },
+  backtestMetrics: [
+    { metric: 'Total Return', strategy: '+24.5%', spy: '+16.2%', alpha: '+8.3%' },
+    { metric: 'CAGR', strategy: '11.2%', spy: '7.4%', alpha: '+3.8%' },
+    { metric: 'Sharpe Ratio', strategy: '1.42', spy: '0.95', alpha: '+0.47' },
+    { metric: 'Max Drawdown', strategy: '-8.3%', spy: '-14.1%', alpha: '+5.8%' },
+    { metric: 'Win Rate', strategy: '64%', spy: '52%', alpha: '+12%' },
+    { metric: 'Sortino Ratio', strategy: '2.10', spy: '1.35', alpha: '+0.75' },
+    { metric: 'Calmar Ratio', strategy: '1.35', spy: '0.52', alpha: '+0.83' },
   ],
-  META: [
-    { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime (72%). Social media ad revenue cyclically strong. Consumer engagement metrics healthy.' },
-    { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+0.75, Rank #4/8. Factors: ROIC=+1.15, earnings_surprise=+0.60, momentum_6m=+0.55.' },
-    { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Positive (score=+0.58, 10 articles). Reels monetization improving, Reality Labs losses narrowing, strong Instagram growth.' },
-    { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)×bull + quant(50%)×+0.75 + sentiment(30%)×+0.58 → final_score=+0.66 → BUY' },
-    { step: 5, agent: 'Risk', color: '#06b6d4', text: '✓ Passed. Weight 10.7%, within limits. Rebalance triggered: trimmed 15 shares last cycle.' },
-  ],
+  signalData: {
+    AAPL:  { macro: 0.72, quant: 1.05, sentiment: 0.72, fused: 0.81 },
+    MSFT:  { macro: 0.72, quant: 0.88, sentiment: 0.65, fused: 0.74 },
+    GOOGL: { macro: 0.72, quant: 0.62, sentiment: 0.35, fused: 0.52 },
+    NVDA:  { macro: 0.72, quant: 1.24, sentiment: 0.91, fused: 1.01 },
+    META:  { macro: 0.72, quant: 0.75, sentiment: 0.58, fused: 0.66 },
+    AMZN:  { macro: 0.72, quant: 0.55, sentiment: 0.48, fused: 0.54 },
+    JPM:   { macro: 0.42, quant: 0.30, sentiment: 0.15, fused: 0.28 },
+    V:     { macro: 0.60, quant: 0.68, sentiment: 0.42, fused: 0.56 },
+    TSLA:  { macro: 0.72, quant: -0.35, sentiment: -0.20, fused: -0.05 },
+    UNH:   { macro: 0.50, quant: 0.45, sentiment: -0.10, fused: 0.28 },
+  },
 };
 
-const trades = [
-  { date: '2026-04-15', symbol: 'NVDA', side: 'BUY', qty: 10, price: 885.20, slippage: 0.12, commission: 1.50, reasoning: 'Quant score breakout, momentum signal' },
-  { date: '2026-04-14', symbol: 'META', side: 'SELL', qty: 15, price: 522.10, slippage: 0.08, commission: 1.20, reasoning: 'Rebalance: weight exceeded 30%' },
-  { date: '2026-04-12', symbol: 'AAPL', side: 'BUY', qty: 20, price: 192.50, slippage: 0.05, commission: 0.80, reasoning: 'Strong sentiment + earnings beat' },
-  { date: '2026-04-10', symbol: 'GOOGL', side: 'BUY', qty: 15, price: 149.80, slippage: 0.10, commission: 0.90, reasoning: 'Undervalued, quant score rising' },
-  { date: '2026-04-08', symbol: 'MSFT', side: 'SELL', qty: 10, price: 418.40, slippage: 0.15, commission: 1.10, reasoning: 'Profit taking, RSI overbought' },
-  { date: '2026-04-05', symbol: 'NVDA', side: 'BUY', qty: 5, price: 870.00, slippage: 0.20, commission: 1.00, reasoning: 'AI infrastructure demand catalyst' },
-  { date: '2026-04-03', symbol: 'AAPL', side: 'BUY', qty: 25, price: 188.30, slippage: 0.03, commission: 0.70, reasoning: 'Sentiment breakout, 12 positive articles' },
-  { date: '2026-04-01', symbol: 'META', side: 'BUY', qty: 20, price: 498.20, slippage: 0.09, commission: 1.30, reasoning: 'Ad revenue growth signal' },
-  { date: '2026-03-28', symbol: 'GOOGL', side: 'SELL', qty: 10, price: 145.60, slippage: 0.07, commission: 0.60, reasoning: 'Rotation to higher momentum names' },
-  { date: '2026-03-25', symbol: 'MSFT', side: 'BUY', qty: 15, price: 375.00, slippage: 0.11, commission: 1.40, reasoning: 'Cloud growth reaccelerating' },
-];
-
-const backtestMetrics = [
-  { metric: 'Total Return', strategy: '+24.5%', spy: '+16.2%', alpha: '+8.3%' },
-  { metric: 'CAGR', strategy: '11.2%', spy: '7.4%', alpha: '+3.8%' },
-  { metric: 'Sharpe Ratio', strategy: '1.42', spy: '0.95', alpha: '+0.47' },
-  { metric: 'Max Drawdown', strategy: '-8.3%', spy: '-14.1%', alpha: '+5.8%' },
-  { metric: 'Win Rate', strategy: '64%', spy: '52%', alpha: '+12%' },
-  { metric: 'Sortino Ratio', strategy: '2.10', spy: '1.35', alpha: '+0.75' },
-  { metric: 'Calmar Ratio', strategy: '1.35', spy: '0.52', alpha: '+0.83' },
-];
-
-const signalData = {
-  AAPL:  { macro: 0.72, quant: 1.05, sentiment: 0.72, fused: 0.81 },
-  MSFT:  { macro: 0.72, quant: 0.88, sentiment: 0.65, fused: 0.74 },
-  GOOGL: { macro: 0.72, quant: 0.62, sentiment: 0.35, fused: 0.52 },
-  NVDA:  { macro: 0.72, quant: 1.24, sentiment: 0.91, fused: 1.01 },
-  META:  { macro: 0.72, quant: 0.75, sentiment: 0.58, fused: 0.66 },
-  AMZN:  { macro: 0.72, quant: 0.55, sentiment: 0.48, fused: 0.54 },
-  JPM:   { macro: 0.42, quant: 0.30, sentiment: 0.15, fused: 0.28 },
-  V:     { macro: 0.60, quant: 0.68, sentiment: 0.42, fused: 0.56 },
-  TSLA:  { macro: 0.72, quant: -0.35, sentiment: -0.20, fused: -0.05 },
-  UNH:   { macro: 0.50, quant: 0.45, sentiment: -0.10, fused: 0.28 },
-};
+// =============================================
+// STATE
+// =============================================
+let positions = [...MOCK.positions];
+let agents = [...MOCK.agents];
+let allReasoningData = { ...MOCK.reasoning };
+let trades = [...MOCK.trades];
+let backtestMetrics = [...MOCK.backtestMetrics];
+let signalData = { ...MOCK.signalData };
 
 const allSymbols = ['AAPL','MSFT','GOOGL','NVDA','META','AMZN','JPM','V','TSLA','UNH'];
 let selectedSymbols = ['AAPL','MSFT','GOOGL','NVDA','META'];
@@ -828,7 +970,7 @@ let signalHistoryChart = null;
 let btEquityChart = null;
 
 // Settings state
-const settings = {
+const settingsState = {
   agents: {
     macro: { enabled: true, weight: 20 },
     quant: { enabled: true, weight: 50 },
@@ -866,10 +1008,10 @@ let toastCount = 0;
 function showToast(message, type = 'success') {
   const container = document.getElementById('toastContainer');
   if (container.children.length >= 3) container.removeChild(container.firstChild);
-  
+
   const colors = { success: 'border-green-500/40 bg-green-500/10', info: 'border-blue-500/40 bg-blue-500/10', warning: 'border-amber-500/40 bg-amber-500/10', error: 'border-red-500/40 bg-red-500/10' };
   const barColors = { success: 'bg-green-500', info: 'bg-blue-500', warning: 'bg-amber-500', error: 'bg-red-500' };
-  const icons = { success: '✓', info: 'ℹ', warning: '⚠', error: '✕' };
+  const icons = { success: '\u2713', info: '\u2139', warning: '\u26A0', error: '\u2715' };
   const textColors = { success: 'text-green-400', info: 'text-blue-400', warning: 'text-amber-400', error: 'text-red-400' };
 
   const toast = document.createElement('div');
@@ -882,7 +1024,7 @@ function showToast(message, type = 'success') {
     <div class="absolute bottom-0 left-0 h-0.5 ${barColors[type]}" style="animation: toastProgress 4s linear forwards;"></div>
   `;
   container.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.className = toast.className.replace('toast-enter', 'toast-exit');
     setTimeout(() => toast.remove(), 250);
@@ -902,9 +1044,9 @@ function switchTab(tabName) {
   if (tab) tab.classList.add('active');
   const btn = document.querySelector(`[data-tab="${tabName}"]`);
   if (btn) { btn.classList.add('text-white', 'bg-slate-700/60'); btn.classList.remove('text-slate-400'); }
-  
-  // Initialize charts for tabs when first shown
+
   if (tabName === 'signals') { renderSignalHeatmap(); initSignalChart(); }
+  if (tabName === 'settings') { document.getElementById('apiUrlInput').value = apiBase; }
 }
 
 // =============================================
@@ -923,15 +1065,15 @@ function initTickerTape() {
     { sym: 'JPM', price: '208.50', change: '+0.3%', up: true },
     { sym: 'V', price: '298.10', change: '+0.6%', up: true },
   ];
-  
+
   const makeItem = (t) => `<span class="inline-flex items-center gap-2 px-4">
     <span class="font-semibold text-white text-xs">${t.sym}</span>
     <span class="text-xs text-slate-300">$${t.price}</span>
-    <span class="text-xs font-medium ${t.up ? 'text-green-400' : 'text-red-400'}">${t.up ? '▲' : '▼'}${t.change}</span>
+    <span class="text-xs font-medium ${t.up ? 'text-green-400' : 'text-red-400'}">${t.up ? '\u25B2' : '\u25BC'}${t.change}</span>
   </span>`;
-  
+
   const strip = tickers.map(makeItem).join('');
-  document.getElementById('tickerTape').innerHTML = strip + strip; // duplicate for seamless loop
+  document.getElementById('tickerTape').innerHTML = strip + strip;
 }
 
 // =============================================
@@ -1008,118 +1150,280 @@ function toggleStrategyPanel() {
 }
 
 // =============================================
-// RUN STRATEGY (Pipeline Simulation)
+// RUN STRATEGY — Real API call with WS fallback
 // =============================================
 let pipelineRunning = false;
-function runStrategy() {
+
+async function runStrategy() {
   if (pipelineRunning) return;
   pipelineRunning = true;
-  
+
   const btn = document.getElementById('runStrategyBtn');
   btn.innerHTML = '<svg class="w-4 h-4 spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Running...';
   btn.classList.add('opacity-80', 'cursor-wait');
-  
+
+  // Show pipeline viz
   const viz = document.getElementById('pipelineViz');
   viz.classList.remove('hidden');
   document.getElementById('pipelineBanner').classList.add('hidden');
-  
+
   const steps = [
-    { name: 'Ingest', parallel: false },
-    { name: 'Macro', parallel: true },
-    { name: 'Quant', parallel: true },
-    { name: 'Sentiment', parallel: true },
-    { name: 'Aggregate', parallel: false },
-    { name: 'Risk', parallel: false },
-    { name: 'Execute', parallel: false },
+    { name: 'Ingest', key: 'ingest' },
+    { name: 'Macro', key: 'macro' },
+    { name: 'Quant', key: 'quant' },
+    { name: 'Sentiment', key: 'sentiment' },
+    { name: 'Aggregate', key: 'aggregate' },
+    { name: 'Risk', key: 'risk' },
+    { name: 'Execute', key: 'execute' },
   ];
-  
+
   const stepsContainer = document.getElementById('pipelineSteps');
   stepsContainer.innerHTML = steps.map((s, i) => `
     <div class="flex items-center gap-1 shrink-0">
       <div id="pstep-${i}" class="w-20 h-12 rounded-lg bg-slate-800 border border-slate-700/40 flex flex-col items-center justify-center transition-all duration-300">
         <span class="text-[10px] font-semibold text-slate-400" id="pstep-name-${i}">${s.name}</span>
-        <span class="text-[9px] text-slate-500" id="pstep-time-${i}">—</span>
+        <span class="text-[9px] text-slate-500" id="pstep-time-${i}">\u2014</span>
       </div>
       ${i < steps.length - 1 ? '<svg class="w-4 h-4 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>' : ''}
     </div>
   `).join('');
-  
-  const runId = 'run_' + Math.random().toString(36).substr(2, 6);
+
   const startTime = Date.now();
-  addLogEntry(`Pipeline ${runId} started`, 'info');
-  
+
   function activateStep(idx) {
     const el = document.getElementById('pstep-' + idx);
+    if (!el) return;
     el.classList.add('step-active');
     el.classList.remove('bg-slate-800');
     document.getElementById('pstep-name-' + idx).classList.remove('text-slate-400');
     document.getElementById('pstep-name-' + idx).classList.add('text-white');
     addLogEntry(`${steps[idx].name} Agent started`, 'info');
   }
-  
+
   function completeStep(idx, ms) {
     const el = document.getElementById('pstep-' + idx);
+    if (!el) return;
     el.classList.remove('step-active');
     el.classList.add('step-done');
     document.getElementById('pstep-time-' + idx).textContent = ms + 'ms';
     document.getElementById('pstep-time-' + idx).classList.remove('text-slate-500');
     document.getElementById('pstep-time-' + idx).classList.add('text-white');
-    document.getElementById('pstep-name-' + idx).innerHTML = '✓ ' + steps[idx].name;
+    document.getElementById('pstep-name-' + idx).innerHTML = '\u2713 ' + steps[idx].name;
     addLogEntry(`${steps[idx].name} Agent complete (${ms}ms)`, 'success');
   }
-  
-  // Animate: Ingest first, then parallel agents, then sequential
-  setTimeout(() => activateStep(0), 100);
-  setTimeout(() => completeStep(0, 320), 800);
-  // Parallel: Macro, Quant, Sentiment
-  setTimeout(() => { activateStep(1); activateStep(2); activateStep(3); }, 900);
-  setTimeout(() => completeStep(1, 580), 2000);
-  setTimeout(() => completeStep(2, 720), 2200);
-  setTimeout(() => completeStep(3, 640), 2100);
-  // Aggregate
-  setTimeout(() => activateStep(4), 2400);
-  setTimeout(() => completeStep(4, 180), 3000);
-  // Risk
-  setTimeout(() => activateStep(5), 3100);
-  setTimeout(() => completeStep(5, 250), 3600);
-  // Execute
-  setTimeout(() => activateStep(6), 3700);
-  setTimeout(() => completeStep(6, 340), 4200);
-  
-  // Complete
-  setTimeout(() => {
+
+  function finishPipeline(result) {
     const totalMs = Date.now() - startTime;
     const banner = document.getElementById('pipelineBanner');
     banner.textContent = `Pipeline Complete in ${(totalMs / 1000).toFixed(1)}s`;
     banner.classList.remove('hidden');
-    addLogEntry(`Pipeline ${runId} complete (${(totalMs / 1000).toFixed(1)}s)`, 'success');
-    
+    addLogEntry(`Pipeline complete (${(totalMs / 1000).toFixed(1)}s)`, 'success');
+
     btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg> Run Strategy';
     btn.classList.remove('opacity-80', 'cursor-wait');
     pipelineRunning = false;
-    
-    // Update dashboard data
-    updateDashboardAfterRun();
-    showToast('Strategy executed successfully — 3 trades placed', 'success');
-  }, 4500);
+
+    if (result) {
+      updateDashboardFromResult(result);
+    } else {
+      updateDashboardAfterRun();
+    }
+    showToast('Strategy executed successfully', 'success');
+  }
+
+  // Try real API first
+  if (apiConnected) {
+    addLogEntry('Sending strategy request to API...', 'info');
+    try {
+      const body = {
+        portfolio_id: 'port_001',
+        symbols: selectedSymbols,
+        capital: parseFloat(document.getElementById('capitalInput').value) || 1000000,
+        risk_tolerance: riskTolerance,
+        stream: true,
+      };
+
+      const resp = await apiFetch('/api/v1/run-strategy', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+
+      // Connect WebSocket for live progress
+      const runId = resp.run_id;
+      addLogEntry(`Pipeline ${runId} started (async mode)`, 'info');
+
+      const ws = new WebSocket(`${getWsBase()}/ws/pipeline/${runId}`);
+      const stepMap = {};
+      steps.forEach((s, i) => stepMap[s.key] = i);
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'step_start') {
+          const idx = stepMap[msg.step];
+          if (idx !== undefined) activateStep(idx);
+        } else if (msg.type === 'step_complete') {
+          const idx = stepMap[msg.step];
+          if (idx !== undefined) completeStep(idx, Math.round(msg.duration_ms));
+        } else if (msg.type === 'pipeline_complete') {
+          ws.close();
+          // Fetch full result
+          apiFetch(`/api/v1/run-status/${runId}`).then(status => {
+            finishPipeline(status.result);
+          }).catch(() => finishPipeline(null));
+        } else if (msg.type === 'pipeline_error') {
+          ws.close();
+          addLogEntry(`Pipeline error: ${msg.error}`, 'error');
+          showToast('Pipeline failed — check logs', 'error');
+          finishPipeline(null);
+        }
+      };
+
+      ws.onerror = () => {
+        addLogEntry('WebSocket error — falling back to polling', 'warning');
+        ws.close();
+        // Fall back to polling
+        pollRunStatus(runId, stepMap, steps, activateStep, completeStep, finishPipeline);
+      };
+
+      ws.onclose = () => {};
+      return;
+    } catch (e) {
+      addLogEntry(`API call failed: ${e.message} — using demo simulation`, 'warning');
+    }
+  }
+
+  // Fallback: local simulation
+  addLogEntry('Running local pipeline simulation', 'info');
+  setTimeout(() => activateStep(0), 100);
+  setTimeout(() => completeStep(0, 320), 800);
+  setTimeout(() => { activateStep(1); activateStep(2); activateStep(3); }, 900);
+  setTimeout(() => completeStep(1, 580), 2000);
+  setTimeout(() => completeStep(2, 720), 2200);
+  setTimeout(() => completeStep(3, 640), 2100);
+  setTimeout(() => activateStep(4), 2400);
+  setTimeout(() => completeStep(4, 180), 3000);
+  setTimeout(() => activateStep(5), 3100);
+  setTimeout(() => completeStep(5, 250), 3600);
+  setTimeout(() => activateStep(6), 3700);
+  setTimeout(() => completeStep(6, 340), 4200);
+  setTimeout(() => finishPipeline(null), 4500);
+}
+
+async function pollRunStatus(runId, stepMap, steps, activateStep, completeStep, finishPipeline) {
+  let attempts = 0;
+  const poll = async () => {
+    if (attempts++ > 120) { finishPipeline(null); return; }
+    try {
+      const status = await apiFetch(`/api/v1/run-status/${runId}`);
+      if (status.status === 'running') {
+        setTimeout(poll, 2000);
+      } else {
+        // Mark all steps complete
+        steps.forEach((_, i) => completeStep(i, '--'));
+        finishPipeline(status.result);
+      }
+    } catch {
+      setTimeout(poll, 3000);
+    }
+  };
+  poll();
+}
+
+function updateDashboardFromResult(result) {
+  if (!result) return updateDashboardAfterRun();
+
+  // Update KPIs from actual result
+  if (result.portfolio_value) kpiTargets.portfolio = Math.round(result.portfolio_value);
+  if (result.risk_metrics) {
+    if (result.risk_metrics.sharpe_ratio != null) kpiTargets.sharpe = result.risk_metrics.sharpe_ratio;
+    if (result.risk_metrics.max_drawdown != null) kpiTargets.drawdown = result.risk_metrics.max_drawdown * -100;
+    if (result.risk_metrics.var_95 != null) kpiTargets.pnl = Math.round(result.risk_metrics.var_95);
+  }
+  animateKPIs();
+
+  // Update regime if available
+  if (result.regime) {
+    updateRegimeBanner(result.regime);
+  }
+
+  // Update reasoning chains from real data
+  if (result.reasoning_chains && Object.keys(result.reasoning_chains).length) {
+    const newReasoning = {};
+    for (const [sym, chain] of Object.entries(result.reasoning_chains)) {
+      newReasoning[sym] = chain.map((text, i) => ({
+        step: i + 1,
+        agent: ['Macro', 'Quant', 'Sentiment', 'Signal Fusion', 'Risk'][i] || `Step ${i+1}`,
+        color: ['#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#06b6d4'][i] || '#64748b',
+        text,
+      }));
+    }
+    allReasoningData = newReasoning;
+    renderReasoningSymbolPills();
+    renderReasoningChain();
+  }
+
+  // Update trades if available
+  if (result.trades && result.trades.length) {
+    const newTrades = result.trades.map(t => ({
+      date: t.date || new Date().toISOString().split('T')[0],
+      symbol: t.symbol,
+      side: t.side || t.action || 'BUY',
+      qty: t.shares || t.qty || 0,
+      price: t.price || 0,
+      slippage: t.slippage_cost || 0,
+      commission: t.commission_cost || 0,
+      reasoning: t.reasoning || '',
+    }));
+    trades = [...newTrades, ...trades];
+    renderTradeHistory();
+  }
+
+  // Flash KPIs
+  document.querySelectorAll('[data-kpi]').forEach(card => {
+    card.classList.add('flash-green');
+    setTimeout(() => card.classList.remove('flash-green'), 1500);
+  });
+
+  // Update agent timestamps
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} UTC`;
+  agents.forEach(a => a.time = timeStr);
+  renderAgentGrid();
+  document.getElementById('agentTimestamp').textContent = `All agents completed at ${timeStr}`;
+}
+
+function updateRegimeBanner(regime) {
+  const label = document.getElementById('regimeLabel');
+  const badge = document.getElementById('regimeBadge');
+  const banner = document.getElementById('regimeBanner');
+
+  const regimeMap = {
+    bull: { text: 'Bull Market', color: 'green', icon: 'M5 15l7-7 7 7' },
+    bear: { text: 'Bear Market', color: 'red', icon: 'M19 9l-7 7-7-7' },
+    neutral: { text: 'Neutral', color: 'amber', icon: 'M5 12h14' },
+    crisis: { text: 'Crisis Mode', color: 'red', icon: 'M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+  };
+
+  const r = regimeMap[regime.toLowerCase()] || regimeMap.neutral;
+  label.textContent = r.text;
+  label.className = `text-sm font-bold text-${r.color}-400 uppercase tracking-wider`;
+  badge.className = `bg-${r.color}-500/15 border border-${r.color}-500/30 rounded-full px-5 py-2 flex items-center gap-2`;
+  banner.className = `bg-gradient-to-r from-${r.color}-500/8 via-slate-900 to-${r.color}-500/8 border border-${r.color}-500/20 rounded-xl p-5`;
 }
 
 function updateDashboardAfterRun() {
-  // Slightly shift KPI values
   const shift = () => 1 + (Math.random() - 0.45) * 0.02;
   kpiTargets.portfolio = Math.round(kpiTargets.portfolio * shift());
   kpiTargets.pnl = Math.round(kpiTargets.pnl * shift());
   kpiTargets.sharpe = Math.round(kpiTargets.sharpe * shift() * 100) / 100;
   kpiTargets.drawdown = Math.round(kpiTargets.drawdown * shift() * 10) / 10;
   animateKPIs();
-  
-  // Flash KPI cards
+
   document.querySelectorAll('[data-kpi]').forEach(card => {
     card.classList.add('flash-green');
     setTimeout(() => card.classList.remove('flash-green'), 1500);
   });
-  
-  // Add new trades
+
   const newSymbols = ['AAPL','MSFT','NVDA','GOOGL','META'];
   const s = newSymbols[Math.floor(Math.random() * newSymbols.length)];
   const side = Math.random() > 0.5 ? 'BUY' : 'SELL';
@@ -1134,8 +1438,7 @@ function updateDashboardAfterRun() {
     reasoning: 'Strategy rebalance signal'
   });
   renderTradeHistory();
-  
-  // Update agent timestamps
+
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} UTC`;
   agents.forEach(a => a.time = timeStr);
@@ -1155,15 +1458,14 @@ function animateKPIs() {
 
 function animateValue(elemId, target, formatter) {
   const el = document.getElementById(elemId);
-  const start = 0;
   const duration = 1500;
   const startTime = performance.now();
-  
+
   function update(currentTime) {
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-    const current = start + (target - start) * eased;
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = target * eased;
     el.textContent = formatter(current);
     if (progress < 1) requestAnimationFrame(update);
   }
@@ -1180,17 +1482,17 @@ function drawSparkline(svgId, points, color) {
   svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   svg.setAttribute('width', w);
   svg.setAttribute('height', h);
-  
+
   const min = Math.min(...points);
   const max = Math.max(...points);
   const range = max - min || 1;
-  
+
   const pts = points.map((v, i) => {
     const x = (i / (points.length - 1)) * w;
     const y = h - ((v - min) / range) * (h - 2) - 1;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
-  
+
   svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 
@@ -1200,7 +1502,7 @@ function initSparklines() {
   const choppy = Array.from({length: 20}, () => 50 + (rng() - 0.5) * 30);
   const rising = Array.from({length: 20}, (_, i) => 1 + i * 0.03 + (rng() - 0.4) * 0.1);
   const dipping = Array.from({length: 20}, (_, i) => -2 - Math.sin(i / 3) * 4 + (rng() - 0.5) * 2);
-  
+
   drawSparkline('sparkPortfolio', uptrend, '#22c55e');
   drawSparkline('sparkPnl', choppy, '#94a3b8');
   drawSparkline('sparkSharpe', rising, '#3b82f6');
@@ -1208,7 +1510,7 @@ function initSparklines() {
 }
 
 // =============================================
-// POSITIONS TABLE (sortable + filterable + totals)
+// POSITIONS TABLE
 // =============================================
 function sortPositions(key) {
   if (posSortKey === key) posSortDir *= -1;
@@ -1220,16 +1522,16 @@ function renderPositionsTable() {
   const tbody = document.getElementById('positionsTable');
   const totalValue = kpiTargets.portfolio;
   const filter = (document.getElementById('posFilterInput')?.value || '').toUpperCase();
-  
+
   let data = positions.map(p => {
     const mv = p.shares * p.currentPrice;
     const pl = (p.currentPrice - p.avgCost) * p.shares;
     const plPct = ((p.currentPrice - p.avgCost) / p.avgCost * 100);
     return { ...p, mv, pl, plPct, weight: mv / totalValue * 100 };
   });
-  
+
   if (filter) data = data.filter(d => d.symbol.includes(filter));
-  
+
   if (posSortKey) {
     data.sort((a, b) => {
       const av = a[posSortKey], bv = b[posSortKey];
@@ -1237,13 +1539,12 @@ function renderPositionsTable() {
       return (av - bv) * posSortDir;
     });
   }
-  
-  // Update sort indicators
+
   ['symbol','shares','avgCost','currentPrice','mv','weight','pl','plPct'].forEach(k => {
     const el = document.getElementById('posSort-' + k);
-    if (el) el.textContent = posSortKey === k ? (posSortDir === 1 ? '▲' : '▼') : '';
+    if (el) el.textContent = posSortKey === k ? (posSortDir === 1 ? '\u25B2' : '\u25BC') : '';
   });
-  
+
   let totalMV = 0, totalPL = 0;
   let html = '';
   data.forEach(p => {
@@ -1262,33 +1563,26 @@ function renderPositionsTable() {
       <td class="text-right px-6 py-3 font-medium ${plColor}">${isPos ? '+' : ''}${p.plPct.toFixed(2)}%</td>
     </tr>`;
   });
-  
-  // Cash row
+
   const cashValue = totalValue - positions.reduce((s, p) => s + p.shares * p.currentPrice, 0);
   html += `<tr class="border-b border-slate-700/20 row-hover">
     <td class="px-6 py-3 font-semibold text-slate-400">CASH</td>
-    <td class="text-right px-4 py-3 text-slate-500">—</td>
-    <td class="text-right px-4 py-3 text-slate-500">—</td>
-    <td class="text-right px-4 py-3 text-slate-500">—</td>
+    <td class="text-right px-4 py-3 text-slate-500">\u2014</td><td class="text-right px-4 py-3 text-slate-500">\u2014</td><td class="text-right px-4 py-3 text-slate-500">\u2014</td>
     <td class="text-right px-4 py-3 text-slate-300">$${cashValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
     <td class="text-right px-4 py-3 text-slate-300">${(cashValue/totalValue*100).toFixed(1)}%</td>
-    <td class="text-right px-4 py-3 text-slate-500">—</td>
-    <td class="text-right px-6 py-3 text-slate-500">—</td>
+    <td class="text-right px-4 py-3 text-slate-500">\u2014</td><td class="text-right px-6 py-3 text-slate-500">\u2014</td>
   </tr>`;
-  
-  // Total row
+
   const isPosTotal = totalPL >= 0;
   html += `<tr class="border-t-2 border-slate-600/60 bg-slate-800/30">
     <td class="px-6 py-3 font-bold text-white">TOTAL</td>
-    <td class="text-right px-4 py-3 text-slate-500">—</td>
-    <td class="text-right px-4 py-3 text-slate-500">—</td>
-    <td class="text-right px-4 py-3 text-slate-500">—</td>
+    <td class="text-right px-4 py-3 text-slate-500">\u2014</td><td class="text-right px-4 py-3 text-slate-500">\u2014</td><td class="text-right px-4 py-3 text-slate-500">\u2014</td>
     <td class="text-right px-4 py-3 text-white font-bold">$${(totalMV + cashValue).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
     <td class="text-right px-4 py-3 text-white font-bold">100%</td>
     <td class="text-right px-4 py-3 font-bold ${isPosTotal ? 'text-green-400' : 'text-red-400'}">${isPosTotal ? '+' : ''}$${totalPL.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
-    <td class="text-right px-6 py-3 text-slate-500">—</td>
+    <td class="text-right px-6 py-3 text-slate-500">\u2014</td>
   </tr>`;
-  
+
   tbody.innerHTML = html;
 }
 
@@ -1315,11 +1609,11 @@ function renderAgentGrid() {
 }
 
 // =============================================
-// REASONING CHAIN (Multi-Symbol)
+// REASONING CHAIN
 // =============================================
 function renderReasoningSymbolPills() {
   const container = document.getElementById('reasoningSymbolPills');
-  const syms = ['AAPL','MSFT','GOOGL','NVDA','META'];
+  const syms = Object.keys(allReasoningData).length > 0 ? Object.keys(allReasoningData) : ['AAPL','MSFT','GOOGL','NVDA','META'];
   container.innerHTML = syms.map(s => `
     <button onclick="switchReasoning('${s}')" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 border ${s === currentReasoning ? 'bg-blue-500/20 border-blue-500/40 text-blue-400' : 'bg-slate-800 border-slate-700/40 text-slate-400 hover:text-slate-200'}">${s}</button>
   `).join('');
@@ -1332,11 +1626,11 @@ function switchReasoning(sym) {
 }
 
 function renderReasoningChain() {
-  const steps = allReasoningData[currentReasoning] || allReasoningData.AAPL;
+  const steps = allReasoningData[currentReasoning] || allReasoningData.AAPL || [];
   const container = document.getElementById('reasoningChain');
   container.style.opacity = '0';
   container.style.transform = 'translateY(6px)';
-  
+
   setTimeout(() => {
     container.innerHTML = steps.map((r, i) => `
       <div class="flex gap-4">
@@ -1350,7 +1644,7 @@ function renderReasoningChain() {
         </div>
       </div>
     `).join('');
-    
+
     container.style.transition = 'opacity 250ms, transform 250ms';
     container.style.opacity = '1';
     container.style.transform = 'translateY(0)';
@@ -1358,17 +1652,15 @@ function renderReasoningChain() {
 }
 
 function copyReasoningChain() {
-  const steps = allReasoningData[currentReasoning] || allReasoningData.AAPL;
+  const steps = allReasoningData[currentReasoning] || [];
   const text = steps.map(r => `[${r.agent}] ${r.text}`).join('\n\n');
   navigator.clipboard.writeText(text).then(() => {
     showToast(`Reasoning chain for ${currentReasoning} copied to clipboard`, 'info');
-  }).catch(() => {
-    showToast('Failed to copy to clipboard', 'error');
-  });
+  }).catch(() => showToast('Failed to copy', 'error'));
 }
 
 // =============================================
-// TRADE HISTORY (sortable + filterable)
+// TRADE HISTORY
 // =============================================
 function setTradeFilter(filter) {
   currentTradeFilter = filter;
@@ -1388,12 +1680,12 @@ function sortTrades(key) {
 function renderTradeHistory() {
   const tbody = document.getElementById('tradeHistoryTable');
   const search = (document.getElementById('tradeSearchInput')?.value || '').toLowerCase();
-  
+
   let data = [...trades];
   if (currentTradeFilter === 'buy') data = data.filter(t => t.side === 'BUY');
   if (currentTradeFilter === 'sell') data = data.filter(t => t.side === 'SELL');
   if (search) data = data.filter(t => t.symbol.toLowerCase().includes(search) || t.reasoning.toLowerCase().includes(search));
-  
+
   if (tradeSortKey) {
     data.sort((a, b) => {
       const av = a[tradeSortKey], bv = b[tradeSortKey];
@@ -1401,12 +1693,12 @@ function renderTradeHistory() {
       return (av - bv) * tradeSortDir;
     });
   }
-  
+
   ['date','symbol','side','qty','price'].forEach(k => {
     const el = document.getElementById('trSort-' + k);
-    if (el) el.textContent = tradeSortKey === k ? (tradeSortDir === 1 ? '▲' : '▼') : '';
+    if (el) el.textContent = tradeSortKey === k ? (tradeSortDir === 1 ? '\u25B2' : '\u25BC') : '';
   });
-  
+
   tbody.innerHTML = data.map(t => {
     const isBuy = t.side === 'BUY';
     return `<tr class="border-b border-slate-700/20 row-hover">
@@ -1415,8 +1707,8 @@ function renderTradeHistory() {
       <td class="px-4 py-3"><span class="text-xs font-semibold px-2.5 py-1 rounded-full ${isBuy ? 'badge-buy' : 'badge-sell'}">${t.side}</span></td>
       <td class="text-right px-4 py-3 text-slate-300">${t.qty}</td>
       <td class="text-right px-4 py-3 text-slate-300">$${t.price.toFixed(2)}</td>
-      <td class="text-right px-4 py-3 text-slate-400">${t.slippage.toFixed(2)}%</td>
-      <td class="text-right px-4 py-3 text-slate-400">$${t.commission.toFixed(2)}</td>
+      <td class="text-right px-4 py-3 text-slate-400">${typeof t.slippage === 'number' ? t.slippage.toFixed(2) + '%' : t.slippage}</td>
+      <td class="text-right px-4 py-3 text-slate-400">$${typeof t.commission === 'number' ? t.commission.toFixed(2) : t.commission}</td>
       <td class="px-6 py-3 text-xs text-slate-400 max-w-[200px] truncate">${t.reasoning}</td>
     </tr>`;
   }).join('');
@@ -1426,8 +1718,7 @@ function renderTradeHistory() {
 // BACKTEST TABLE
 // =============================================
 function renderBacktestTable() {
-  const tbody = document.getElementById('backtestTable');
-  tbody.innerHTML = backtestMetrics.map(m => `
+  document.getElementById('backtestTable').innerHTML = backtestMetrics.map(m => `
     <tr class="border-b border-slate-700/20 row-hover">
       <td class="px-6 py-3 text-slate-300 font-medium">${m.metric}</td>
       <td class="text-right px-6 py-3 text-blue-400 font-semibold">${m.strategy}</td>
@@ -1438,16 +1729,13 @@ function renderBacktestTable() {
 }
 
 // =============================================
-// CHARTS
+// CHARTS (same as before with minor cleanup)
 // =============================================
 function generateEquityCurve() {
-  const labels = [];
-  const strategyData = [];
-  const spyData = [];
+  const labels = [], strategyData = [], spyData = [];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   let stratVal = 100000, spyVal = 100000;
   const rng = makeRng(42);
-
   for (let y = 2024; y <= 2026; y++) {
     const maxM = y === 2026 ? 4 : 12;
     for (let m = 0; m < maxM; m++) {
@@ -1461,24 +1749,14 @@ function generateEquityCurve() {
   return { labels, strategyData, spyData };
 }
 
-// Crosshair plugin for Chart.js
 const crosshairPlugin = {
   id: 'crosshair',
   afterDraw(chart) {
     if (chart.tooltip?._active?.length) {
       const ctx = chart.ctx;
       const x = chart.tooltip._active[0].element.x;
-      const topY = chart.scales.y.top;
-      const bottomY = chart.scales.y.bottom;
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(x, topY);
-      ctx.lineTo(x, bottomY);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
-      ctx.setLineDash([4, 4]);
-      ctx.stroke();
-      ctx.restore();
+      ctx.save(); ctx.beginPath(); ctx.moveTo(x, chart.scales.y.top); ctx.lineTo(x, chart.scales.y.bottom);
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)'; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.restore();
     }
   }
 };
@@ -1487,73 +1765,17 @@ function createEquityCurveChart() {
   equityFullData = generateEquityCurve();
   const { labels, strategyData, spyData } = equityFullData;
   const ctx = document.getElementById('equityCurveChart').getContext('2d');
-  
-  const gradientBlue = ctx.createLinearGradient(0, 0, 0, 340);
-  gradientBlue.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
-  gradientBlue.addColorStop(1, 'rgba(59, 130, 246, 0)');
-
+  const g = ctx.createLinearGradient(0, 0, 0, 340);
+  g.addColorStop(0, 'rgba(59, 130, 246, 0.15)'); g.addColorStop(1, 'rgba(59, 130, 246, 0)');
   equityChart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'AI Strategy',
-          data: strategyData,
-          borderColor: '#3b82f6',
-          backgroundColor: gradientBlue,
-          fill: true,
-          borderWidth: 2,
-          tension: 0.35,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#3b82f6',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2,
-        },
-        {
-          label: 'SPY Benchmark',
-          data: spyData,
-          borderColor: '#64748b',
-          borderDash: [6, 4],
-          borderWidth: 1.5,
-          fill: false,
-          tension: 0.35,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          pointHoverBackgroundColor: '#64748b',
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#e2e8f0',
-          bodyColor: '#94a3b8',
-          borderColor: '#334155',
-          borderWidth: 1,
-          padding: 12,
-          cornerRadius: 8,
-          titleFont: { family: 'General Sans', size: 12, weight: '600' },
-          bodyFont: { family: 'General Sans', size: 11 },
-          callbacks: { label: ctx => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString()}` }
-        },
-      },
-      scales: {
-        x: {
-          grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false },
-          ticks: { color: '#64748b', font: { family: 'General Sans', size: 10 }, maxTicksLimit: 12 },
-        },
-        y: {
-          grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false },
-          ticks: { color: '#64748b', font: { family: 'General Sans', size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' },
-        },
-      },
+    data: { labels, datasets: [
+      { label: 'AI Strategy', data: strategyData, borderColor: '#3b82f6', backgroundColor: g, fill: true, borderWidth: 2, tension: 0.35, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#3b82f6', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2 },
+      { label: 'SPY Benchmark', data: spyData, borderColor: '#64748b', borderDash: [6, 4], borderWidth: 1.5, fill: false, tension: 0.35, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#64748b' },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', titleColor: '#e2e8f0', bodyColor: '#94a3b8', borderColor: '#334155', borderWidth: 1, padding: 12, cornerRadius: 8, titleFont: { family: 'General Sans', size: 12, weight: '600' }, bodyFont: { family: 'General Sans', size: 11 }, callbacks: { label: ctx => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString()}` } } },
+      scales: { x: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { family: 'General Sans', size: 10 }, maxTicksLimit: 12 } }, y: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { family: 'General Sans', size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' } } },
     },
     plugins: [crosshairPlugin],
   });
@@ -1561,23 +1783,13 @@ function createEquityCurveChart() {
 
 function setEquityRange(range) {
   document.querySelectorAll('.eq-range-btn').forEach(btn => {
-    const isActive = btn.dataset.range === range;
-    btn.className = `eq-range-btn px-3 py-1 text-xs font-medium rounded transition-all duration-200 ${isActive ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white'}`;
+    btn.className = `eq-range-btn px-3 py-1 text-xs font-medium rounded transition-all duration-200 ${btn.dataset.range === range ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white'}`;
   });
-  
   if (!equityFullData || !equityChart) return;
   const { labels, strategyData, spyData } = equityFullData;
   const total = labels.length;
-  let start = 0;
-  
-  if (range === '1m') start = total - 1;
-  else if (range === '3m') start = total - 3;
-  else if (range === '6m') start = total - 6;
-  else if (range === '1y') start = total - 12;
-  else start = 0;
-  
+  let start = range === '1m' ? total - 1 : range === '3m' ? total - 3 : range === '6m' ? total - 6 : range === '1y' ? total - 12 : 0;
   start = Math.max(0, start);
-  
   equityChart.data.labels = labels.slice(start);
   equityChart.data.datasets[0].data = strategyData.slice(start);
   equityChart.data.datasets[1].data = spyData.slice(start);
@@ -1585,28 +1797,10 @@ function setEquityRange(range) {
 }
 
 function createVarChart() {
-  const ctx = document.getElementById('varChart').getContext('2d');
-  new Chart(ctx, {
+  new Chart(document.getElementById('varChart').getContext('2d'), {
     type: 'doughnut',
-    data: {
-      labels: ['95% VaR ($12,400)', '99% VaR ($18,700)', 'Remaining'],
-      datasets: [{
-        data: [12400, 6300, 1005800],
-        backgroundColor: ['#3b82f6', '#a855f7', 'rgba(51, 65, 85, 0.3)'],
-        borderColor: '#1e293b',
-        borderWidth: 3,
-        hoverOffset: 4,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '68%',
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'General Sans', size: 10 }, padding: 12, usePointStyle: true, pointStyleWidth: 8 } },
-        tooltip: { backgroundColor: '#1e293b', titleColor: '#e2e8f0', bodyColor: '#94a3b8', borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 8, callbacks: { label: ctx => ctx.dataIndex === 2 ? 'Portfolio: $' + ctx.parsed.toLocaleString() : ctx.label } }
-      }
-    }
+    data: { labels: ['95% VaR ($12,400)', '99% VaR ($18,700)', 'Remaining'], datasets: [{ data: [12400, 6300, 1005800], backgroundColor: ['#3b82f6', '#a855f7', 'rgba(51, 65, 85, 0.3)'], borderColor: '#1e293b', borderWidth: 3, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'General Sans', size: 10 }, padding: 12, usePointStyle: true, pointStyleWidth: 8 } }, tooltip: { backgroundColor: '#1e293b', titleColor: '#e2e8f0', bodyColor: '#94a3b8', borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 8 } } }
   });
 }
 
@@ -1616,49 +1810,16 @@ function createDrawdownChart() {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const rng = makeRng(99);
   let peak = 100000, current = 100000;
-
-  for (let y = 2024; y <= 2026; y++) {
-    const maxM = y === 2026 ? 4 : 12;
-    for (let m = 0; m < maxM; m++) {
-      labels.push(`${months[m]} ${String(y).slice(2)}`);
-      current *= (1 + (rng() - 0.42) * 0.05);
-      if (current > peak) peak = current;
-      data.push(Math.round(((current - peak) / peak) * 10000) / 100);
-    }
-  }
-
-  const gradientRed = ctx.createLinearGradient(0, 0, 0, 220);
-  gradientRed.addColorStop(0, 'rgba(239, 68, 68, 0.01)');
-  gradientRed.addColorStop(1, 'rgba(239, 68, 68, 0.25)');
-
-  new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets: [{ data, borderColor: '#ef4444', backgroundColor: gradientRed, fill: true, borderWidth: 1.5, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#ef4444' }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', bodyColor: '#ef4444', borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 8, callbacks: { label: ctx => `Drawdown: ${ctx.parsed.y.toFixed(2)}%` } } },
-      scales: {
-        x: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 } },
-        y: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 }, callback: v => v + '%' }, max: 0 }
-      }
-    }
-  });
+  for (let y = 2024; y <= 2026; y++) { const maxM = y === 2026 ? 4 : 12; for (let m = 0; m < maxM; m++) { labels.push(`${months[m]} ${String(y).slice(2)}`); current *= (1 + (rng() - 0.42) * 0.05); if (current > peak) peak = current; data.push(Math.round(((current - peak) / peak) * 10000) / 100); } }
+  const g = ctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, 'rgba(239, 68, 68, 0.01)'); g.addColorStop(1, 'rgba(239, 68, 68, 0.25)');
+  new Chart(ctx, { type: 'line', data: { labels, datasets: [{ data, borderColor: '#ef4444', backgroundColor: g, fill: true, borderWidth: 1.5, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#ef4444' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', bodyColor: '#ef4444', borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 8, callbacks: { label: ctx => `Drawdown: ${ctx.parsed.y.toFixed(2)}%` } } }, scales: { x: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 } }, y: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 }, callback: v => v + '%' }, max: 0 } } } });
 }
 
 function createRadarChart() {
-  const ctx = document.getElementById('radarChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'radar',
-    data: {
-      labels: ['Momentum', 'Volatility', 'Volume Trend', 'RSI', 'Mean Reversion', 'Quality'],
-      datasets: [{ label: 'Factor Scores', data: [0.85, 0.62, 0.74, 0.58, 0.45, 0.81], backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: '#3b82f6', borderWidth: 2, pointBackgroundColor: '#3b82f6', pointRadius: 4, pointHoverRadius: 6 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', bodyColor: '#94a3b8', borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 8 } },
-      scales: { r: { beginAtZero: true, max: 1, ticks: { display: false, stepSize: 0.25 }, grid: { color: 'rgba(51, 65, 85, 0.4)' }, angleLines: { color: 'rgba(51, 65, 85, 0.4)' }, pointLabels: { color: '#94a3b8', font: { family: 'General Sans', size: 10 } } } }
-    }
-  });
+  new Chart(document.getElementById('radarChart').getContext('2d'), { type: 'radar',
+    data: { labels: ['Momentum', 'Volatility', 'Volume Trend', 'RSI', 'Mean Reversion', 'Quality'], datasets: [{ label: 'Factor Scores', data: [0.85, 0.62, 0.74, 0.58, 0.45, 0.81], backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: '#3b82f6', borderWidth: 2, pointBackgroundColor: '#3b82f6', pointRadius: 4, pointHoverRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { r: { beginAtZero: true, max: 1, ticks: { display: false, stepSize: 0.25 }, grid: { color: 'rgba(51, 65, 85, 0.4)' }, angleLines: { color: 'rgba(51, 65, 85, 0.4)' }, pointLabels: { color: '#94a3b8', font: { family: 'General Sans', size: 10 } } } } } });
 }
 
 // =============================================
@@ -1668,7 +1829,6 @@ function renderSignalHeatmap() {
   const container = document.getElementById('signalHeatmapContainer');
   const types = ['Macro', 'Quant', 'Sentiment', 'Fused'];
   const keys = ['macro', 'quant', 'sentiment', 'fused'];
-  
   function cellColor(val) {
     if (val > 0.5) return 'bg-green-500/30 text-green-300';
     if (val > 0.1) return 'bg-green-500/15 text-green-400';
@@ -1676,100 +1836,98 @@ function renderSignalHeatmap() {
     if (val > -0.5) return 'bg-red-500/15 text-red-400';
     return 'bg-red-500/30 text-red-300';
   }
-  
   let html = '<table class="w-full text-sm"><thead><tr><th class="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Symbol</th>';
   types.forEach(t => html += `<th class="text-center px-4 py-2 text-xs font-medium text-slate-400 uppercase">${t}</th>`);
   html += '</tr></thead><tbody>';
-  
   Object.keys(signalData).forEach(sym => {
     html += `<tr class="border-t border-slate-700/20"><td class="px-4 py-2 font-semibold text-white">${sym}</td>`;
-    keys.forEach(k => {
-      const val = signalData[sym][k];
-      html += `<td class="px-4 py-2 text-center"><div class="heatmap-cell inline-block px-3 py-1.5 rounded-lg text-xs font-semibold ${cellColor(val)}">${val >= 0 ? '+' : ''}${val.toFixed(2)}</div></td>`;
-    });
+    keys.forEach(k => { const val = signalData[sym][k]; html += `<td class="px-4 py-2 text-center"><div class="heatmap-cell inline-block px-3 py-1.5 rounded-lg text-xs font-semibold ${cellColor(val)}">${val >= 0 ? '+' : ''}${val.toFixed(2)}</div></td>`; });
     html += '</tr>';
   });
-  
   html += '</tbody></table>';
   container.innerHTML = html;
 }
 
-function initSignalChart() {
-  if (signalHistoryChart) { signalHistoryChart.destroy(); signalHistoryChart = null; }
-  updateSignalChart();
-}
+function initSignalChart() { if (signalHistoryChart) { signalHistoryChart.destroy(); signalHistoryChart = null; } updateSignalChart(); }
 
 function updateSignalChart() {
   const sym = document.getElementById('signalSymbolSelect').value;
   const canvas = document.getElementById('signalHistoryChart');
   if (!canvas) return;
-  
   if (signalHistoryChart) signalHistoryChart.destroy();
-  
   const rng = makeRng(sym.charCodeAt(0) * 100 + sym.charCodeAt(1));
   const base = signalData[sym]?.fused || 0.5;
   const labels = [], data = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
-    data.push(Math.round((base + (rng() - 0.5) * 0.6) * 100) / 100);
-  }
-  
+  for (let i = 29; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); labels.push(`${d.getMonth() + 1}/${d.getDate()}`); data.push(Math.round((base + (rng() - 0.5) * 0.6) * 100) / 100); }
   const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
-  gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-  
-  signalHistoryChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets: [{ label: `${sym} Fused Signal`, data, borderColor: '#3b82f6', backgroundColor: gradient, fill: true, borderWidth: 2, tension: 0.3, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: '#3b82f6' }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', bodyColor: '#94a3b8', borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 8 } },
-      scales: {
-        x: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 10 } },
-        y: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 } } }
-      }
-    },
+  const g = ctx.createLinearGradient(0, 0, 0, 300); g.addColorStop(0, 'rgba(59, 130, 246, 0.15)'); g.addColorStop(1, 'rgba(59, 130, 246, 0)');
+  signalHistoryChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: `${sym} Fused Signal`, data, borderColor: '#3b82f6', backgroundColor: g, fill: true, borderWidth: 2, tension: 0.3, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: '#3b82f6' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 10 } }, y: { grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 } } } } },
     plugins: [crosshairPlugin],
   });
 }
 
 // =============================================
-// BACKTEST TAB
+// BACKTEST TAB — Real API call with fallback
 // =============================================
-function runBacktest() {
+async function runBacktest() {
   const btn = document.getElementById('runBacktestBtn');
   btn.innerHTML = '<svg class="w-4 h-4 spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Running...';
   btn.classList.add('opacity-80');
-  
+
   const loadingBar = document.getElementById('btLoadingBar');
   loadingBar.classList.remove('hidden');
   loadingBar.querySelector('div').style.animation = 'none';
-  loadingBar.querySelector('div').offsetHeight; // trigger reflow
+  loadingBar.querySelector('div').offsetHeight;
   loadingBar.querySelector('div').style.animation = 'loadingBar 3s ease-out forwards';
-  
   document.getElementById('btResults').classList.add('hidden');
   addLogEntry('Backtest started', 'info');
-  
+
+  let useApi = apiConnected;
+
+  if (useApi) {
+    try {
+      const body = {
+        symbols: btSelectedSymbols,
+        start_date: document.getElementById('btStartDate').value,
+        end_date: document.getElementById('btEndDate').value,
+        initial_capital: parseFloat(document.getElementById('btCapital').value) || 1000000,
+        rebalance_frequency: document.getElementById('btRebalance').value.toLowerCase(),
+        risk_tolerance: riskTolerance,
+      };
+      addLogEntry('Sending backtest request to API...', 'info');
+      const result = await apiFetch('/api/v1/backtest', { method: 'POST', body: JSON.stringify(body) });
+
+      // Parse real backtest results
+      if (result && result.metrics) {
+        backtestMetrics = Object.entries(result.metrics).map(([k, v]) => ({
+          metric: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          strategy: typeof v === 'number' ? (v * 100).toFixed(1) + '%' : String(v),
+          spy: '-', alpha: '-',
+        }));
+      }
+      addLogEntry('Backtest result received from API', 'success');
+    } catch (e) {
+      addLogEntry(`Backtest API failed: ${e.message} — using demo data`, 'warning');
+      useApi = false;
+    }
+  }
+
   setTimeout(() => {
     btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg> Run Backtest';
     btn.classList.remove('opacity-80');
     loadingBar.classList.add('hidden');
-    
-    // Show results
     document.getElementById('btResults').classList.remove('hidden');
     renderBtResultsTable();
     createBtEquityChart();
     renderMonthlyReturnsHeatmap();
     addLogEntry('Backtest complete', 'success');
     showToast('Backtest completed successfully', 'success');
-  }, 3000);
+  }, useApi ? 500 : 3000);
 }
 
 function renderBtResultsTable() {
-  const tbody = document.getElementById('btResultsTable');
-  tbody.innerHTML = backtestMetrics.map(m => `
+  document.getElementById('btResultsTable').innerHTML = backtestMetrics.map(m => `
     <tr class="border-b border-slate-700/20 row-hover">
       <td class="px-6 py-3 text-slate-300 font-medium">${m.metric}</td>
       <td class="text-right px-6 py-3 text-blue-400 font-semibold">${m.strategy}</td>
@@ -1781,69 +1939,26 @@ function renderBtResultsTable() {
 
 function createBtEquityChart() {
   if (btEquityChart) btEquityChart.destroy();
-  
-  const canvas = document.getElementById('btEquityChart');
-  const ctx = canvas.getContext('2d');
+  const ctx = document.getElementById('btEquityChart').getContext('2d');
   const { labels, strategyData, spyData } = generateEquityCurve();
-  
-  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
-  gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-  
-  btEquityChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Strategy', data: strategyData, borderColor: '#3b82f6', backgroundColor: gradient, fill: true, borderWidth: 2, tension: 0.35, pointRadius: 0 },
-        { label: 'SPY', data: spyData, borderColor: '#64748b', borderDash: [6, 4], borderWidth: 1.5, fill: false, tension: 0.35, pointRadius: 0 },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } }, tooltip: { backgroundColor: '#1e293b', bodyColor: '#94a3b8', borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 8 } },
-      scales: {
-        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 12 } },
-        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b', font: { size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' } }
-      }
-    },
-    plugins: [crosshairPlugin],
-  });
+  const g = ctx.createLinearGradient(0, 0, 0, 300); g.addColorStop(0, 'rgba(59, 130, 246, 0.15)'); g.addColorStop(1, 'rgba(59, 130, 246, 0)');
+  btEquityChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [
+    { label: 'Strategy', data: strategyData, borderColor: '#3b82f6', backgroundColor: g, fill: true, borderWidth: 2, tension: 0.35, pointRadius: 0 },
+    { label: 'SPY', data: spyData, borderColor: '#64748b', borderDash: [6, 4], borderWidth: 1.5, fill: false, tension: 0.35, pointRadius: 0 },
+  ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 12 } }, y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b', font: { size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' } } } }, plugins: [crosshairPlugin] });
 }
 
 function renderMonthlyReturnsHeatmap() {
   const container = document.getElementById('monthlyReturnsHeatmap');
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const rng = makeRng(123);
-  
   const years = [2024, 2025, 2026];
-  
-  function retColor(val) {
-    if (val > 3) return 'bg-green-500/40 text-green-300';
-    if (val > 1) return 'bg-green-500/20 text-green-400';
-    if (val > -1) return 'bg-slate-700/30 text-slate-400';
-    if (val > -3) return 'bg-red-500/20 text-red-400';
-    return 'bg-red-500/40 text-red-300';
-  }
-  
+  function retColor(val) { if (val > 3) return 'bg-green-500/40 text-green-300'; if (val > 1) return 'bg-green-500/20 text-green-400'; if (val > -1) return 'bg-slate-700/30 text-slate-400'; if (val > -3) return 'bg-red-500/20 text-red-400'; return 'bg-red-500/40 text-red-300'; }
   let html = '<table class="text-xs"><thead><tr><th class="px-3 py-2 text-slate-400 font-medium">Year</th>';
   months.forEach(m => html += `<th class="px-3 py-2 text-slate-400 font-medium text-center">${m}</th>`);
   html += '</tr></thead><tbody>';
-  
-  years.forEach(y => {
-    html += `<tr><td class="px-3 py-2 text-white font-semibold">${y}</td>`;
-    const maxM = y === 2026 ? 4 : 12;
-    for (let m = 0; m < 12; m++) {
-      if (m < maxM) {
-        const ret = Math.round((rng() - 0.35) * 8 * 100) / 100;
-        html += `<td class="px-1 py-1 text-center"><div class="heatmap-cell px-2 py-1.5 rounded ${retColor(ret)} font-semibold">${ret >= 0 ? '+' : ''}${ret.toFixed(1)}%</div></td>`;
-      } else {
-        html += '<td class="px-1 py-1 text-center"><div class="px-2 py-1.5 text-slate-600">—</div></td>';
-      }
-    }
-    html += '</tr>';
-  });
-  
+  years.forEach(y => { html += `<tr><td class="px-3 py-2 text-white font-semibold">${y}</td>`; const maxM = y === 2026 ? 4 : 12;
+    for (let m = 0; m < 12; m++) { if (m < maxM) { const ret = Math.round((rng() - 0.35) * 8 * 100) / 100; html += `<td class="px-1 py-1 text-center"><div class="heatmap-cell px-2 py-1.5 rounded ${retColor(ret)} font-semibold">${ret >= 0 ? '+' : ''}${ret.toFixed(1)}%</div></td>`; } else { html += '<td class="px-1 py-1 text-center"><div class="px-2 py-1.5 text-slate-600">\u2014</div></td>'; } } html += '</tr>'; });
   html += '</tbody></table>';
   container.innerHTML = html;
 }
@@ -1860,13 +1975,10 @@ function renderSettingsAgents() {
     { key: 'risk', name: 'Risk Manager', hasWeight: false },
     { key: 'execution', name: 'Execution Agent', hasWeight: false },
   ];
-  
   container.innerHTML = agentDefs.map(a => {
-    const s = settings.agents[a.key];
+    const s = settingsState.agents[a.key];
     return `<div class="flex items-center gap-6 py-3 border-b border-slate-700/20">
-      <div class="w-40">
-        <span class="text-sm font-medium text-white">${a.name}</span>
-      </div>
+      <div class="w-40"><span class="text-sm font-medium text-white">${a.name}</span></div>
       <div class="flex items-center gap-2">
         <div class="toggle-switch ${s.enabled ? 'active' : ''}" onclick="toggleAgent('${a.key}', this)"></div>
         <span class="text-xs text-slate-400">${s.enabled ? 'Enabled' : 'Disabled'}</span>
@@ -1880,25 +1992,16 @@ function renderSettingsAgents() {
   }).join('');
 }
 
-function toggleAgent(key, el) {
-  settings.agents[key].enabled = !settings.agents[key].enabled;
-  el.classList.toggle('active');
-  el.nextElementSibling.textContent = settings.agents[key].enabled ? 'Enabled' : 'Disabled';
-}
-
-function updateSettWeight(key, val) {
-  settings.agents[key].weight = parseInt(val);
-  document.getElementById('settWeight-' + key).textContent = val + '%';
-}
+function toggleAgent(key, el) { settingsState.agents[key].enabled = !settingsState.agents[key].enabled; el.classList.toggle('active'); el.nextElementSibling.textContent = settingsState.agents[key].enabled ? 'Enabled' : 'Disabled'; }
+function updateSettWeight(key, val) { settingsState.agents[key].weight = parseInt(val); document.getElementById('settWeight-' + key).textContent = val + '%'; }
 
 function saveSettings() {
-  settings.risk.maxPosWeight = parseFloat(document.getElementById('settMaxPosWeight').value);
-  settings.risk.maxVaR = parseFloat(document.getElementById('settMaxVaR').value);
-  settings.risk.maxDD = parseFloat(document.getElementById('settMaxDD').value);
-  settings.risk.minSharpe = parseFloat(document.getElementById('settMinSharpe').value);
-  settings.execution.slippage = parseFloat(document.getElementById('settSlippage').value);
-  settings.execution.commission = parseFloat(document.getElementById('settCommission').value);
-  
+  settingsState.risk.maxPosWeight = parseFloat(document.getElementById('settMaxPosWeight').value);
+  settingsState.risk.maxVaR = parseFloat(document.getElementById('settMaxVaR').value);
+  settingsState.risk.maxDD = parseFloat(document.getElementById('settMaxDD').value);
+  settingsState.risk.minSharpe = parseFloat(document.getElementById('settMinSharpe').value);
+  settingsState.execution.slippage = parseFloat(document.getElementById('settSlippage').value);
+  settingsState.execution.commission = parseFloat(document.getElementById('settCommission').value);
   const btn = document.getElementById('saveSettingsBtn');
   btn.classList.add('flash-green');
   setTimeout(() => btn.classList.remove('flash-green'), 1500);
@@ -1920,7 +2023,6 @@ function addLogEntry(message, type = 'info') {
   const now = new Date();
   const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
   logEntries.push({ ts, message, type });
-  
   const colors = { info: 'text-blue-400', success: 'text-green-400', warning: 'text-amber-400', error: 'text-red-400' };
   const content = document.getElementById('logContent');
   const entry = document.createElement('div');
@@ -1928,35 +2030,81 @@ function addLogEntry(message, type = 'info') {
   entry.innerHTML = `<span class="text-slate-500">[${ts}]</span> ${message}`;
   content.appendChild(entry);
   content.scrollTop = content.scrollHeight;
-  
   document.getElementById('logCount').textContent = logEntries.length;
 }
 
-function clearLog() {
-  logEntries = [];
-  document.getElementById('logContent').innerHTML = '';
-  document.getElementById('logCount').textContent = '0';
+function clearLog() { logEntries = []; document.getElementById('logContent').innerHTML = ''; document.getElementById('logCount').textContent = '0'; }
+
+// =============================================
+// FETCH SIGNALS FROM API (if available)
+// =============================================
+async function fetchSignalsFromApi() {
+  if (!apiConnected) return;
+  try {
+    const data = await apiFetch('/api/v1/signals?limit=50');
+    if (data.signals && data.signals.length > 0) {
+      // Build signal data from API response
+      const newSignals = {};
+      data.signals.forEach(s => {
+        if (s.type === 'aggregated' && s.symbol) {
+          newSignals[s.symbol] = {
+            macro: s.macro_score || 0,
+            quant: s.quant_score || 0,
+            sentiment: s.sentiment_score || 0,
+            fused: s.fused_score || s.final_score || 0,
+          };
+        }
+      });
+      if (Object.keys(newSignals).length > 0) {
+        signalData = { ...MOCK.signalData, ...newSignals };
+        addLogEntry(`Loaded ${Object.keys(newSignals).length} signals from API`, 'info');
+      }
+    }
+  } catch { /* silently fall back to mock */ }
+}
+
+// =============================================
+// FETCH PORTFOLIO FROM API (if available)
+// =============================================
+async function fetchPortfolioFromApi() {
+  if (!apiConnected) return;
+  try {
+    const data = await apiFetch('/api/v1/portfolio/port_001');
+    if (data && data.positions) {
+      positions = data.positions.map(p => ({
+        symbol: p.symbol,
+        shares: p.shares || p.quantity || 0,
+        avgCost: p.avg_cost || p.average_cost || 0,
+        currentPrice: p.current_price || p.market_price || 0,
+      }));
+      renderPositionsTable();
+      addLogEntry('Portfolio loaded from API', 'success');
+    }
+  } catch { /* silently fall back to mock */ }
 }
 
 // =============================================
 // INIT
 // =============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Set connection status to connecting
+  setConnectionStatus('connecting', 'Connecting...');
+
   // Ticker
   initTickerTape();
-  
+
   // Clock
   updateClock();
   setInterval(updateClock, 1000);
-  
+
   // Symbol pills
   renderSymbolPills('symbolPills', selectedSymbols, 'toggleSymbol');
   renderSymbolPills('btSymbolPills', btSelectedSymbols, 'toggleBtSymbol');
-  
+
   // KPI animations + sparklines
   animateKPIs();
   initSparklines();
-  
+
   // Tables
   renderPositionsTable();
   renderAgentGrid();
@@ -1964,20 +2112,30 @@ document.addEventListener('DOMContentLoaded', () => {
   renderReasoningChain();
   renderTradeHistory();
   renderBacktestTable();
-  
+
   // Charts
   createEquityCurveChart();
   createVarChart();
   createDrawdownChart();
   createRadarChart();
-  
+
   // Settings
   renderSettingsAgents();
-  
+
   // Initial log entries
   addLogEntry('System initialized', 'info');
-  addLogEntry('Connected to market data feed', 'success');
-  addLogEntry('5 agents online', 'info');
+
+  // Check API health
+  const online = await checkHealth();
+  if (online) {
+    addLogEntry('Connected to market data feed', 'success');
+    addLogEntry('5 agents online', 'info');
+    // Fetch real data if API is available
+    await Promise.allSettled([fetchPortfolioFromApi(), fetchSignalsFromApi()]);
+  } else {
+    addLogEntry('Running in demo mode (no API connection)', 'warning');
+    addLogEntry('Start the backend: uvicorn api.main:app --reload', 'info');
+  }
 });
 </script>
 </body>

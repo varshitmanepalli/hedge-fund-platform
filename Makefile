@@ -1,7 +1,7 @@
-.PHONY: install dev test lint format seed run-pipeline
+.PHONY: install dev test lint format seed run-pipeline docker-up docker-down docker-logs
 
 install:
-	poetry install
+	pip install -e ".[dev]"
 
 dev:
 	uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
@@ -40,3 +40,9 @@ docker-down:
 
 docker-logs:
 	docker-compose logs -f
+
+docker-build:
+	docker-compose build --no-cache
+
+docker-restart:
+	docker-compose down && docker-compose up -d
