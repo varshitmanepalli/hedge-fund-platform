@@ -2,7 +2,7 @@
 name = "hedge-fund-platform"
 version = "0.1.0"
 description = "AI-powered multi-agent hedge fund simulation platform"
-authors = ["Hedge Fund Platform"]
+authors = ["Varshit Manepalli"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

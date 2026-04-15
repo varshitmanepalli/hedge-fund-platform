@@ -7,7 +7,7 @@ from datetime import datetime
 
 from beanie import Document
 from pydantic import Field
-
+from typing import Optional
 from config.constants import TradeSide, TradeStatus
 
 

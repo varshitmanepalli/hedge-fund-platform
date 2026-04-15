@@ -40,13 +40,13 @@ User Request → Orchestrator DAG
 
 - Python 3.11+
 - MongoDB 7.0 (Docker recommended)
-- Poetry or pip
+- pip
 
 ### 2. Install
 
 ```bash
 cd hedge_fund
-poetry install
+pip install -r requirements.txt
 cp .env.example .env
 # Fill in your API keys (FRED, NewsAPI, HuggingFace) — all optional
 ```
