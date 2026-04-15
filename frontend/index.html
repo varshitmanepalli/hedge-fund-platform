@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Hedge Fund Platform — Multi-Agent Strategy Simulation</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"General Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          colors: {
+            slate: {
+              950: '#0f172a',
+              900: '#1e293b',
+              800: '#1a2332',
+              700: '#334155',
+              600: '#475569',
+              500: '#64748b',
+              400: '#94a3b8',
+              300: '#cbd5e1',
+            },
+            accent: {
+              blue: '#3b82f6',
+              green: '#22c55e',
+              red: '#ef4444',
+              purple: '#a855f7',
+              amber: '#f59e0b',
+              cyan: '#06b6d4',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
+    body { font-family: 'General Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums lining-nums; }
+
+    /* Subtle glow effects */
+    .glow-blue { box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.15), 0 4px 24px rgba(59, 130, 246, 0.06); }
+    .glow-green { box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.15), 0 4px 24px rgba(34, 197, 94, 0.06); }
+    .glow-red { box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15), 0 4px 24px rgba(239, 68, 68, 0.06); }
+    .glow-purple { box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.15), 0 4px 24px rgba(168, 85, 247, 0.06); }
+
+    /* Card hover */
+    .card-hover { transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+    /* Table row hover */
+    .row-hover { transition: background 150ms ease; }
+    .row-hover:hover { background: rgba(59, 130, 246, 0.06); }
+
+    /* Collapsible */
+    .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 350ms cubic-bezier(0.16, 1, 0.3, 1); }
+    .collapsible-content.open { max-height: 600px; }
+
+    /* Pulse animation for live dot */
+    @keyframes pulse-live {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.3); }
+    }
+    .pulse-live { animation: pulse-live 2s ease-in-out infinite; }
+
+    /* Agent card status bar */
+    .agent-status-bar { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #22c55e, #3b82f6); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Badge styles */
+    .badge-buy { background: rgba(34,197,94,0.12); color: #22c55e; }
+    .badge-sell { background: rgba(239,68,68,0.12); color: #ef4444; }
+    .badge-hold { background: rgba(245,158,11,0.12); color: #f59e0b; }
+  </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen">
+
+  <!-- ========== 1. HEADER ========== -->
+  <header class="border-b border-slate-700/60 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-[1440px] mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- SVG Logo -->
+        <svg aria-label="AI Hedge Fund logo" width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <rect x="2" y="2" width="32" height="32" rx="8" stroke="#3b82f6" stroke-width="2"/>
+          <path d="M10 24 L14 14 L18 20 L22 10 L26 18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="26" cy="18" r="2.5" fill="#3b82f6"/>
+        </svg>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white">AI Hedge Fund Platform</h1>
+          <p class="text-xs text-slate-400 font-medium">Multi-Agent Strategy Simulation</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-6">
+        <span class="text-xs text-slate-400">Last updated: 2m ago</span>
+        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700/60 rounded-full px-3 py-1.5">
+          <span class="w-2 h-2 rounded-full bg-green-500 pulse-live"></span>
+          <span class="text-xs font-semibold text-green-400 uppercase tracking-wider">Live</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-[1440px] mx-auto px-6 py-8 space-y-8">
+
+    <!-- ========== 2. PORTFOLIO OVERVIEW CARDS ========== -->
+    <section>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Portfolio Value -->
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5 card-hover">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Portfolio Value</span>
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-white">$1,024,500</div>
+          <div class="flex items-center gap-1.5 mt-1.5">
+            <svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
+            <span class="text-sm font-semibold text-green-400">+2.45%</span>
+            <span class="text-xs text-slate-500 ml-1">all time</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Today's P&L -->
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5 card-hover">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Today's P&L</span>
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-green-400">+$5,200</div>
+          <div class="flex items-center gap-1.5 mt-1.5">
+            <svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
+            <span class="text-sm font-semibold text-green-400">+0.51%</span>
+            <span class="text-xs text-slate-500 ml-1">today</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Sharpe Ratio -->
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5 card-hover">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Sharpe Ratio</span>
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-white">1.42</div>
+          <div class="flex items-center gap-1.5 mt-1.5">
+            <span class="text-xs text-slate-500">Above benchmark (1.0)</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Max Drawdown -->
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5 card-hover">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Max Drawdown</span>
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-red-400">-8.3%</div>
+          <div class="flex items-center gap-1.5 mt-1.5">
+            <span class="text-xs text-slate-500">Within risk tolerance (10%)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 3. MARKET REGIME BANNER ========== -->
+    <section class="bg-gradient-to-r from-green-500/8 via-slate-900 to-green-500/8 border border-green-500/20 rounded-xl p-5">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="bg-green-500/15 border border-green-500/30 rounded-full px-5 py-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
+            <span class="text-sm font-bold text-green-400 uppercase tracking-wider">Bull Market</span>
+          </div>
+          <div>
+            <p class="text-sm text-slate-300">Confidence: <span class="font-semibold text-white">72%</span> <span class="text-slate-500">|</span> Based on 7 macro indicators</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-6 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400">VIX</span>
+            <span class="font-semibold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">17.5</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400">Yield Curve</span>
+            <span class="font-semibold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">+0.35bps</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400">GDP</span>
+            <span class="font-semibold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">2.1%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 4. EQUITY CURVE CHART ========== -->
+    <section>
+      <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-base font-semibold text-white">Equity Curve</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Strategy vs SPY Benchmark — Jan 2024 to Apr 2026</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs">
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-0.5 bg-blue-500 rounded-full inline-block"></span>
+              <span class="text-slate-400">Strategy</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-0.5 bg-slate-500 rounded-full inline-block" style="border-top: 1px dashed #64748b;"></span>
+              <span class="text-slate-400">SPY Benchmark</span>
+            </div>
+          </div>
+        </div>
+        <div style="height: 340px;">
+          <canvas id="equityCurveChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 5. PORTFOLIO POSITIONS TABLE ========== -->
+    <section>
+      <div class="bg-slate-900 border border-slate-700/40 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-700/40">
+          <h2 class="text-base font-semibold text-white">Portfolio Positions</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-700/40">
+                <th class="text-left px-6 py-3 font-medium">Symbol</th>
+                <th class="text-right px-4 py-3 font-medium">Shares</th>
+                <th class="text-right px-4 py-3 font-medium">Avg Cost</th>
+                <th class="text-right px-4 py-3 font-medium">Current Price</th>
+                <th class="text-right px-4 py-3 font-medium">Market Value</th>
+                <th class="text-right px-4 py-3 font-medium">Weight</th>
+                <th class="text-right px-4 py-3 font-medium">P&L</th>
+                <th class="text-right px-6 py-3 font-medium">P&L %</th>
+              </tr>
+            </thead>
+            <tbody id="positionsTable" class="text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 6. AGENT SIGNAL DASHBOARD ========== -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-white">Agent Signal Dashboard</h2>
+        <span class="text-xs text-slate-400">All agents completed at 14:32 UTC</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="agentGrid"></div>
+    </section>
+
+    <!-- ========== 7. REASONING CHAIN ========== -->
+    <section>
+      <div class="bg-slate-900 border border-slate-700/40 rounded-xl overflow-hidden">
+        <button onclick="toggleReasoning()" class="w-full px-6 py-4 flex items-center justify-between border-b border-slate-700/40 hover:bg-slate-800/40 transition-colors" id="reasoningToggle">
+          <div class="flex items-center gap-3">
+            <h2 class="text-base font-semibold text-white">Reasoning Chain</h2>
+            <span class="text-xs bg-blue-500/15 text-blue-400 font-semibold px-2 py-0.5 rounded">AAPL</span>
+          </div>
+          <svg id="reasoningChevron" class="w-5 h-5 text-slate-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="collapsible-content" id="reasoningContent">
+          <div class="px-6 py-5 space-y-4" id="reasoningChain"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 8. RISK METRICS PANEL ========== -->
+    <section>
+      <h2 class="text-base font-semibold text-white mb-4">Risk Metrics</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- VaR Donut -->
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5">
+          <h3 class="text-sm font-medium text-slate-300 mb-4">Value at Risk (VaR)</h3>
+          <div style="height: 220px; display:flex; align-items:center; justify-content:center;">
+            <canvas id="varChart"></canvas>
+          </div>
+        </div>
+        <!-- Drawdown Area Chart -->
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5">
+          <h3 class="text-sm font-medium text-slate-300 mb-4">Underwater Equity (Drawdown)</h3>
+          <div style="height: 220px;">
+            <canvas id="drawdownChart"></canvas>
+          </div>
+        </div>
+        <!-- Radar Chart -->
+        <div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5">
+          <h3 class="text-sm font-medium text-slate-300 mb-4">Factor Scores</h3>
+          <div style="height: 220px; display:flex; align-items:center; justify-content:center;">
+            <canvas id="radarChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 9. TRADE HISTORY TABLE ========== -->
+    <section>
+      <div class="bg-slate-900 border border-slate-700/40 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-700/40">
+          <h2 class="text-base font-semibold text-white">Trade History</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-700/40">
+                <th class="text-left px-6 py-3 font-medium">Date</th>
+                <th class="text-left px-4 py-3 font-medium">Symbol</th>
+                <th class="text-left px-4 py-3 font-medium">Side</th>
+                <th class="text-right px-4 py-3 font-medium">Qty</th>
+                <th class="text-right px-4 py-3 font-medium">Price</th>
+                <th class="text-right px-4 py-3 font-medium">Slippage</th>
+                <th class="text-right px-4 py-3 font-medium">Commission</th>
+                <th class="text-left px-6 py-3 font-medium">Reasoning</th>
+              </tr>
+            </thead>
+            <tbody id="tradeHistoryTable" class="text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 10. BACKTEST RESULTS ========== -->
+    <section class="pb-12">
+      <div class="bg-slate-900 border border-slate-700/40 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-700/40">
+          <div>
+            <h2 class="text-base font-semibold text-white">Backtest Performance Comparison</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Jan 2024 — Apr 2026 | Strategy outperforms across all key metrics</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-700/40">
+                <th class="text-left px-6 py-3 font-medium">Metric</th>
+                <th class="text-right px-6 py-3 font-medium">AI Strategy</th>
+                <th class="text-right px-6 py-3 font-medium">SPY Benchmark</th>
+                <th class="text-right px-6 py-3 font-medium">Alpha</th>
+              </tr>
+            </thead>
+            <tbody id="backtestTable" class="text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="border-t border-slate-700/40 bg-slate-950">
+    <div class="max-w-[1440px] mx-auto px-6 py-5 flex items-center justify-between text-xs text-slate-500">
+      <span>&copy; 2026 AI Hedge Fund Platform. Simulation only — not financial advice.</span>
+      <span>Engine v2.4.1</span>
+    </div>
+  </footer>
+
+<script>
+// =============================================
+// DATA
+// =============================================
+
+const positions = [
+  { symbol: 'AAPL', shares: 1200, avgCost: 178.50, currentPrice: 195.20 },
+  { symbol: 'MSFT', shares: 580, avgCost: 380.00, currentPrice: 415.80 },
+  { symbol: 'GOOGL', shares: 520, avgCost: 140.25, currentPrice: 152.40 },
+  { symbol: 'NVDA', shares: 300, avgCost: 720.00, currentPrice: 890.50 },
+  { symbol: 'META', shares: 210, avgCost: 490.00, currentPrice: 520.30 },
+];
+
+const agents = [
+  { name: 'Macro Agent', icon: '🌐', output: 'BULL (72% confidence)', color: 'green', time: '14:32 UTC' },
+  { name: 'Quant Agent', icon: '📊', output: 'Top pick: NVDA (score: 1.24)', color: 'blue', time: '14:31 UTC' },
+  { name: 'Sentiment Agent', icon: '💬', output: 'AAPL: Positive (0.78)', color: 'purple', time: '14:30 UTC' },
+  { name: 'Risk Manager', icon: '🛡️', output: 'All constraints passed ✓', color: 'green', time: '14:32 UTC' },
+  { name: 'Execution Agent', icon: '⚡', output: '3 trades executed', color: 'blue', time: '14:32 UTC' },
+  { name: 'Signal Aggregator', icon: '🔗', output: '5/8 assets: BUY signal', color: 'purple', time: '14:32 UTC' },
+];
+
+const reasoningSteps = [
+  { step: 1, agent: 'Macro', color: '#22c55e', text: 'Bullish regime detected (confidence: 72%). VIX=17.5, below 20 threshold. Yield curve positive at +0.35bps. GDP growth at 2.1% QoQ.' },
+  { step: 2, agent: 'Quant', color: '#3b82f6', text: 'Composite score=+1.05, Rank #1/8 (95th pct). Top factors: momentum_12m=+1.20, earnings_surprise=+0.85, relative_strength=+0.92.' },
+  { step: 3, agent: 'Sentiment', color: '#a855f7', text: 'Positive (score=+0.72, 12 articles analyzed). Key themes: strong iPhone demand, services revenue acceleration, AI integration momentum.' },
+  { step: 4, agent: 'Signal Fusion', color: '#f59e0b', text: 'macro(20%)×bull + quant(50%)×+1.05 + sentiment(30%)×+0.72 → final_score=+0.81 → STRONG_BUY' },
+  { step: 5, agent: 'Risk', color: '#06b6d4', text: '✓ All constraints passed. Sharpe=1.42, VaR(95%)=$12,400, MaxDD=8.3%. Position size within limits. Correlation check: OK.' },
+];
+
+const trades = [
+  { date: '2026-04-15', symbol: 'NVDA', side: 'BUY', qty: 10, price: 885.20, slippage: 0.12, commission: 1.50, reasoning: 'Quant score breakout, momentum signal' },
+  { date: '2026-04-14', symbol: 'META', side: 'SELL', qty: 15, price: 522.10, slippage: 0.08, commission: 1.20, reasoning: 'Rebalance: weight exceeded 30%' },
+  { date: '2026-04-12', symbol: 'AAPL', side: 'BUY', qty: 20, price: 192.50, slippage: 0.05, commission: 0.80, reasoning: 'Strong sentiment + earnings beat' },
+  { date: '2026-04-10', symbol: 'GOOGL', side: 'BUY', qty: 15, price: 149.80, slippage: 0.10, commission: 0.90, reasoning: 'Undervalued, quant score rising' },
+  { date: '2026-04-08', symbol: 'MSFT', side: 'SELL', qty: 10, price: 418.40, slippage: 0.15, commission: 1.10, reasoning: 'Profit taking, RSI overbought' },
+  { date: '2026-04-05', symbol: 'NVDA', side: 'BUY', qty: 5, price: 870.00, slippage: 0.20, commission: 1.00, reasoning: 'AI infrastructure demand catalyst' },
+  { date: '2026-04-03', symbol: 'AAPL', side: 'BUY', qty: 25, price: 188.30, slippage: 0.03, commission: 0.70, reasoning: 'Sentiment breakout, 12 positive articles' },
+  { date: '2026-04-01', symbol: 'META', side: 'BUY', qty: 20, price: 498.20, slippage: 0.09, commission: 1.30, reasoning: 'Ad revenue growth signal' },
+  { date: '2026-03-28', symbol: 'GOOGL', side: 'SELL', qty: 10, price: 145.60, slippage: 0.07, commission: 0.60, reasoning: 'Rotation to higher momentum names' },
+  { date: '2026-03-25', symbol: 'MSFT', side: 'BUY', qty: 15, price: 375.00, slippage: 0.11, commission: 1.40, reasoning: 'Cloud growth reaccelerating' },
+];
+
+const backtestMetrics = [
+  { metric: 'Total Return', strategy: '+24.5%', spy: '+16.2%', alpha: '+8.3%' },
+  { metric: 'CAGR', strategy: '11.2%', spy: '7.4%', alpha: '+3.8%' },
+  { metric: 'Sharpe Ratio', strategy: '1.42', spy: '0.95', alpha: '+0.47' },
+  { metric: 'Max Drawdown', strategy: '-8.3%', spy: '-14.1%', alpha: '+5.8%' },
+  { metric: 'Win Rate', strategy: '64%', spy: '52%', alpha: '+12%' },
+  { metric: 'Sortino Ratio', strategy: '2.10', spy: '1.35', alpha: '+0.75' },
+  { metric: 'Calmar Ratio', strategy: '1.35', spy: '0.52', alpha: '+0.83' },
+];
+
+
+// =============================================
+// RENDER FUNCTIONS
+// =============================================
+
+function renderPositionsTable() {
+  const tbody = document.getElementById('positionsTable');
+  const totalValue = 1024500;
+  const cashValue = totalValue - positions.reduce((s, p) => s + p.shares * p.currentPrice, 0);
+
+  let html = '';
+  positions.forEach(p => {
+    const mv = p.shares * p.currentPrice;
+    const pl = (p.currentPrice - p.avgCost) * p.shares;
+    const plPct = ((p.currentPrice - p.avgCost) / p.avgCost * 100);
+    const isPos = pl >= 0;
+    const plColor = isPos ? 'text-green-400' : 'text-red-400';
+
+    html += `<tr class="border-b border-slate-700/20 row-hover">
+      <td class="px-6 py-3 font-semibold text-white">${p.symbol}</td>
+      <td class="text-right px-4 py-3 text-slate-300">${p.shares.toLocaleString()}</td>
+      <td class="text-right px-4 py-3 text-slate-300">$${p.avgCost.toFixed(2)}</td>
+      <td class="text-right px-4 py-3 text-white font-medium">$${p.currentPrice.toFixed(2)}</td>
+      <td class="text-right px-4 py-3 text-slate-300">$${mv.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+      <td class="text-right px-4 py-3 text-slate-300">${(mv/totalValue*100).toFixed(1)}%</td>
+      <td class="text-right px-4 py-3 font-medium ${plColor}">${isPos ? '+' : ''}$${pl.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+      <td class="text-right px-6 py-3 font-medium ${plColor}">${isPos ? '+' : ''}${plPct.toFixed(2)}%</td>
+    </tr>`;
+  });
+
+  // Cash row
+  html += `<tr class="border-b border-slate-700/20 row-hover">
+    <td class="px-6 py-3 font-semibold text-slate-400">CASH</td>
+    <td class="text-right px-4 py-3 text-slate-500">—</td>
+    <td class="text-right px-4 py-3 text-slate-500">—</td>
+    <td class="text-right px-4 py-3 text-slate-500">—</td>
+    <td class="text-right px-4 py-3 text-slate-300">$${cashValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+    <td class="text-right px-4 py-3 text-slate-300">${(cashValue/totalValue*100).toFixed(1)}%</td>
+    <td class="text-right px-4 py-3 text-slate-500">—</td>
+    <td class="text-right px-6 py-3 text-slate-500">—</td>
+  </tr>`;
+
+  tbody.innerHTML = html;
+}
+
+function renderAgentGrid() {
+  const grid = document.getElementById('agentGrid');
+  const colorMap = { green: 'green', blue: 'blue', purple: 'purple' };
+  
+  grid.innerHTML = agents.map(a => {
+    const c = colorMap[a.color];
+    return `<div class="bg-slate-900 border border-slate-700/40 rounded-xl p-5 card-hover">
+      <div class="agent-status-bar mb-4" style="background: linear-gradient(90deg, ${a.color === 'green' ? '#22c55e' : a.color === 'blue' ? '#3b82f6' : '#a855f7'}, transparent);"></div>
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="text-lg">${a.icon}</span>
+          <span class="text-sm font-semibold text-white">${a.name}</span>
+        </div>
+        <span class="text-[10px] font-medium bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full uppercase tracking-wider">Complete</span>
+      </div>
+      <p class="text-sm text-slate-300 font-medium mb-2">${a.output}</p>
+      <p class="text-[11px] text-slate-500">Last run: ${a.time}</p>
+    </div>`;
+  }).join('');
+}
+
+function renderReasoningChain() {
+  const container = document.getElementById('reasoningChain');
+  container.innerHTML = reasoningSteps.map((r, i) => {
+    return `<div class="flex gap-4">
+      <div class="flex flex-col items-center">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style="background: ${r.color}20; border: 2px solid ${r.color};">${r.step}</div>
+        ${i < reasoningSteps.length - 1 ? '<div class="w-px flex-1 bg-slate-700/50 mt-1"></div>' : ''}
+      </div>
+      <div class="pb-4">
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color: ${r.color};">${r.agent}</span>
+        <p class="text-sm text-slate-300 mt-1 leading-relaxed">${r.text}</p>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTradeHistory() {
+  const tbody = document.getElementById('tradeHistoryTable');
+  tbody.innerHTML = trades.map(t => {
+    const isBuy = t.side === 'BUY';
+    return `<tr class="border-b border-slate-700/20 row-hover">
+      <td class="px-6 py-3 text-slate-400 text-xs">${t.date}</td>
+      <td class="px-4 py-3 font-semibold text-white">${t.symbol}</td>
+      <td class="px-4 py-3"><span class="text-xs font-semibold px-2.5 py-1 rounded-full ${isBuy ? 'badge-buy' : 'badge-sell'}">${t.side}</span></td>
+      <td class="text-right px-4 py-3 text-slate-300">${t.qty}</td>
+      <td class="text-right px-4 py-3 text-slate-300">$${t.price.toFixed(2)}</td>
+      <td class="text-right px-4 py-3 text-slate-400">${t.slippage.toFixed(2)}%</td>
+      <td class="text-right px-4 py-3 text-slate-400">$${t.commission.toFixed(2)}</td>
+      <td class="px-6 py-3 text-xs text-slate-400 max-w-[200px] truncate">${t.reasoning}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderBacktestTable() {
+  const tbody = document.getElementById('backtestTable');
+  tbody.innerHTML = backtestMetrics.map(m => {
+    return `<tr class="border-b border-slate-700/20 row-hover">
+      <td class="px-6 py-3 text-slate-300 font-medium">${m.metric}</td>
+      <td class="text-right px-6 py-3 text-blue-400 font-semibold">${m.strategy}</td>
+      <td class="text-right px-6 py-3 text-slate-400">${m.spy}</td>
+      <td class="text-right px-6 py-3 text-green-400 font-semibold">${m.alpha}</td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================================
+// CHARTS
+// =============================================
+
+function generateEquityCurve() {
+  // Generate monthly data from Jan 2024 to Apr 2026 (28 months)
+  const labels = [];
+  const strategyData = [];
+  const spyData = [];
+  
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let stratVal = 100000;
+  let spyVal = 100000;
+  
+  // Seed random for reproducibility
+  let seed = 42;
+  function seededRandom() {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
+
+  for (let y = 2024; y <= 2026; y++) {
+    const maxM = y === 2026 ? 4 : 12;
+    const startM = y === 2024 ? 0 : 0;
+    for (let m = startM; m < maxM; m++) {
+      labels.push(`${months[m]} ${y}`);
+      
+      // Strategy: slightly better returns with some volatility
+      const stratReturn = 0.008 + (seededRandom() - 0.35) * 0.04;
+      stratVal *= (1 + stratReturn);
+      strategyData.push(Math.round(stratVal));
+      
+      // SPY: slightly lower returns
+      const spyReturn = 0.005 + (seededRandom() - 0.4) * 0.035;
+      spyVal *= (1 + spyReturn);
+      spyData.push(Math.round(spyVal));
+    }
+  }
+
+  return { labels, strategyData, spyData };
+}
+
+function createEquityCurveChart() {
+  const { labels, strategyData, spyData } = generateEquityCurve();
+  const ctx = document.getElementById('equityCurveChart').getContext('2d');
+  
+  const gradientBlue = ctx.createLinearGradient(0, 0, 0, 340);
+  gradientBlue.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
+  gradientBlue.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'AI Strategy',
+          data: strategyData,
+          borderColor: '#3b82f6',
+          backgroundColor: gradientBlue,
+          fill: true,
+          borderWidth: 2,
+          tension: 0.35,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#3b82f6',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+        },
+        {
+          label: 'SPY Benchmark',
+          data: spyData,
+          borderColor: '#64748b',
+          borderDash: [6, 4],
+          borderWidth: 1.5,
+          fill: false,
+          tension: 0.35,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#64748b',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { family: 'General Sans', size: 12, weight: '600' },
+          bodyFont: { family: 'General Sans', size: 11 },
+          callbacks: {
+            label: function(ctx) {
+              return `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString()}`;
+            }
+          }
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false },
+          ticks: { color: '#64748b', font: { family: 'General Sans', size: 10 }, maxTicksLimit: 12 },
+        },
+        y: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false },
+          ticks: {
+            color: '#64748b',
+            font: { family: 'General Sans', size: 10 },
+            callback: v => '$' + (v / 1000).toFixed(0) + 'k',
+          },
+        },
+      },
+    },
+  });
+}
+
+function createVarChart() {
+  const ctx = document.getElementById('varChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['95% VaR ($12,400)', '99% VaR ($18,700)', 'Remaining'],
+      datasets: [{
+        data: [12400, 6300, 1005800],
+        backgroundColor: ['#3b82f6', '#a855f7', 'rgba(51, 65, 85, 0.3)'],
+        borderColor: '#1e293b',
+        borderWidth: 3,
+        hoverOffset: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#94a3b8',
+            font: { family: 'General Sans', size: 10 },
+            padding: 12,
+            usePointStyle: true,
+            pointStyleWidth: 8,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: function(ctx) {
+              if (ctx.dataIndex === 2) return 'Portfolio: $' + ctx.parsed.toLocaleString();
+              return ctx.label;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function createDrawdownChart() {
+  const ctx = document.getElementById('drawdownChart').getContext('2d');
+  
+  // Generate drawdown data
+  const labels = [];
+  const data = [];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let seed = 99;
+  function seededRandom() {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
+
+  let peak = 100000;
+  let current = 100000;
+  for (let y = 2024; y <= 2026; y++) {
+    const maxM = y === 2026 ? 4 : 12;
+    for (let m = 0; m < maxM; m++) {
+      labels.push(`${months[m]} ${String(y).slice(2)}`);
+      current *= (1 + (seededRandom() - 0.42) * 0.05);
+      if (current > peak) peak = current;
+      const dd = ((current - peak) / peak) * 100;
+      data.push(Math.round(dd * 100) / 100);
+    }
+  }
+
+  const gradientRed = ctx.createLinearGradient(0, 0, 0, 220);
+  gradientRed.addColorStop(0, 'rgba(239, 68, 68, 0.01)');
+  gradientRed.addColorStop(1, 'rgba(239, 68, 68, 0.25)');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: '#ef4444',
+        backgroundColor: gradientRed,
+        fill: true,
+        borderWidth: 1.5,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#ef4444',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          bodyColor: '#ef4444',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: { label: ctx => `Drawdown: ${ctx.parsed.y.toFixed(2)}%` }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false },
+          ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 },
+        },
+        y: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)', drawBorder: false },
+          ticks: { color: '#64748b', font: { size: 10 }, callback: v => v + '%' },
+          max: 0,
+        }
+      }
+    }
+  });
+}
+
+function createRadarChart() {
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Momentum', 'Volatility', 'Volume Trend', 'RSI', 'Mean Reversion', 'Quality'],
+      datasets: [{
+        label: 'Factor Scores',
+        data: [0.85, 0.62, 0.74, 0.58, 0.45, 0.81],
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        borderColor: '#3b82f6',
+        borderWidth: 2,
+        pointBackgroundColor: '#3b82f6',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          bodyColor: '#94a3b8',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8,
+        }
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          max: 1,
+          ticks: { display: false, stepSize: 0.25 },
+          grid: { color: 'rgba(51, 65, 85, 0.4)' },
+          angleLines: { color: 'rgba(51, 65, 85, 0.4)' },
+          pointLabels: {
+            color: '#94a3b8',
+            font: { family: 'General Sans', size: 10 },
+          }
+        }
+      }
+    }
+  });
+}
+
+
+// =============================================
+// COLLAPSIBLE REASONING
+// =============================================
+
+function toggleReasoning() {
+  const content = document.getElementById('reasoningContent');
+  const chevron = document.getElementById('reasoningChevron');
+  content.classList.toggle('open');
+  chevron.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+
+// =============================================
+// INIT
+// =============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderPositionsTable();
+  renderAgentGrid();
+  renderReasoningChain();
+  renderTradeHistory();
+  renderBacktestTable();
+  createEquityCurveChart();
+  createVarChart();
+  createDrawdownChart();
+  createRadarChart();
+  
+  // Auto-open reasoning chain
+  setTimeout(() => toggleReasoning(), 500);
+});
+</script>
+</body>
+</html>
