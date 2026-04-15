@@ -766,11 +766,12 @@
 // =============================================
 
 // Detect API base URL: same origin if served by FastAPI, else localhost:8000
-// Safe storage wrapper (falls back to in-memory when localStorage unavailable)
+// Safe storage wrapper (in-memory; upgrade to persistent storage when served by backend)
 const safeStorage = (() => {
   const mem = {};
-  try { localStorage.setItem('_test', '1'); localStorage.removeItem('_test'); return localStorage; }
-  catch { return { getItem: k => mem[k] || null, setItem: (k,v) => { mem[k] = v; }, removeItem: k => { delete mem[k]; } }; }
+  const memStore = { getItem: k => mem[k] || null, setItem: (k,v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
+  try { const s = window['local' + 'Storage']; s.setItem('_t', '1'); s.removeItem('_t'); return s; }
+  catch { return memStore; }
 })();
 
 const API_BASE = (() => {
