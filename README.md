@@ -72,7 +72,7 @@ git clone https://github.com/varshitmanepalli/hedge-fund-platform.git
 cd hedge-fund-platform
 
 # Install Python dependencies
-pip install -e ".[dev]"
+pip install -m requirements.txt
 
 # Copy environment template
 cp .env.example .env
@@ -368,20 +368,6 @@ hedge_fund/
 - **Orchestration**: Custom async DAG engine with WebSocket progress streaming
 - **Frontend**: Single-file HTML5 dashboard with Tailwind CSS + Chart.js
 - **Deployment**: Docker + Docker Compose
-
----
-
-## Development Phases Completed
-
-- [x] Phase 1: System Design & Architecture
-- [x] Phase 2: Data Layer (ingestion, normalization, MongoDB)
-- [x] Phase 3: Agent Implementation (all 5 agents + unit tests)
-- [x] Phase 4: Orchestration (DAG runner, memory, retry)
-- [x] Phase 5: Backtesting Engine (walk-forward, benchmarking)
-- [x] Phase 6: API Layer (FastAPI endpoints)
-- [x] Phase 7: Explainability (per-trade reasoning chains)
-- [x] Phase 8: Frontend Dashboard (interactive, 12+ features)
-- [x] Phase 9: Backend–Frontend Integration (API wiring, WebSocket, Docker)
 
 ---
 
