@@ -7,6 +7,12 @@ Override defaults via environment variables or modify the StrategyRequest below.
 
 import asyncio
 import json
+import sys
+from pathlib import Path
+
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 
 from loguru import logger
 

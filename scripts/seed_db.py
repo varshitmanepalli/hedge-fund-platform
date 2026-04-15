@@ -7,7 +7,14 @@ and stores it in the market_data collection.
 """
 
 import asyncio
+import sys
 from datetime import date, timedelta
+from pathlib import Path
+
+# Project root must be on path when running as `python scripts/seed_db.py`
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 
 from loguru import logger
 
