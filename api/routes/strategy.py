@@ -10,8 +10,9 @@ Supports two modes:
 import asyncio
 import uuid
 from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Union
 
 from orchestrator.runner import StrategyRequest, StrategyResult, run_strategy
 from api.routes.ws import progress_manager
@@ -28,6 +29,13 @@ class RunStrategyRequest(BaseModel):
     news_lookback_hours: int = Field(48, ge=1, le=168)
     top_n: int = Field(5, ge=1, le=20)
     stream: bool = Field(False, description="If true, return run_id immediately and stream progress via WebSocket")
+
+
+class StreamStartedResponse(BaseModel):
+    """Response returned when stream=true (async pipeline mode)."""
+    run_id: str
+    status: str = "started"
+    message: str = "Connect to /ws/pipeline/{run_id} for live progress"
 
 
 # In-memory store for async pipeline results
@@ -49,16 +57,35 @@ async def _run_pipeline_async(run_id: str, request: StrategyRequest):
         _async_results[run_id] = None
 
 
-@router.post("/run-strategy", response_model=StrategyResult)
+@router.post(
+    "/run-strategy",
+    responses={
+        200: {
+            "description": "Synchronous mode returns full StrategyResult; "
+                           "stream=true returns StreamStartedResponse with run_id.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/StrategyResult"},
+                            {"$ref": "#/components/schemas/StreamStartedResponse"},
+                        ]
+                    }
+                }
+            },
+        },
+    },
+)
 async def run_strategy_endpoint(
     body: RunStrategyRequest,
     background_tasks: BackgroundTasks,
-) -> StrategyResult | dict:
+):
     """
     Run the full multi-agent pipeline:
     Data Ingestion → Macro → (Quant || Sentiment) → Signal Aggregation → Risk → Execution
 
     Returns trades, portfolio weights, risk metrics, and per-symbol reasoning chains.
+    With stream=true, returns a run_id immediately and streams progress via WebSocket.
     """
     try:
         request = StrategyRequest(
@@ -72,15 +99,19 @@ async def run_strategy_endpoint(
         )
 
         if body.stream:
-            # Async mode: return run_id, run pipeline in background
+            # Async mode: return run_id immediately, run pipeline in background
             run_id = f"run_{uuid.uuid4().hex[:10]}"
             _async_results[run_id] = None
             background_tasks.add_task(_run_pipeline_async, run_id, request)
-            return {"run_id": run_id, "status": "started", "message": "Connect to /ws/pipeline/{run_id} for live progress"}
+            return JSONResponse(content=StreamStartedResponse(
+                run_id=run_id,
+                status="started",
+                message=f"Connect to /ws/pipeline/{run_id} for live progress",
+            ).model_dump(mode="json"))
 
-        # Synchronous mode
+        # Synchronous mode — return full result
         result = await run_strategy(request)
-        return result
+        return JSONResponse(content=result.model_dump(mode="json"))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
@@ -100,5 +131,5 @@ async def get_run_status(run_id: str) -> dict:
     return {
         "run_id": run_id,
         "status": result.status,
-        "result": result.model_dump(),
+        "result": result.model_dump(mode="json"),
     }
