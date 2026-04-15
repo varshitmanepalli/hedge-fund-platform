@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: hedgefund_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: hedgefund
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hedgefund_api
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  mongo_data:
+    driver: local

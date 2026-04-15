@@ -1,0 +1,244 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HedgeFund Platform Schemas",
+
+  "Asset": {
+    "type": "object",
+    "description": "A tradeable financial instrument",
+    "required": ["symbol", "asset_class", "exchange", "currency"],
+    "properties": {
+      "symbol":      { "type": "string", "example": "AAPL" },
+      "name":        { "type": "string", "example": "Apple Inc." },
+      "asset_class": { "type": "string", "enum": ["equity", "etf", "crypto", "bond", "commodity"] },
+      "exchange":    { "type": "string", "example": "NASDAQ" },
+      "currency":    { "type": "string", "example": "USD" },
+      "sector":      { "type": "string", "example": "Technology" },
+      "market_cap":  { "type": "number" },
+      "metadata":    { "type": "object" }
+    }
+  },
+
+  "MarketBar": {
+    "type": "object",
+    "description": "OHLCV bar for an asset at a point in time",
+    "required": ["symbol", "timestamp", "open", "high", "low", "close", "volume"],
+    "properties": {
+      "symbol":    { "type": "string" },
+      "timestamp": { "type": "string", "format": "date-time" },
+      "open":      { "type": "number" },
+      "high":      { "type": "number" },
+      "low":       { "type": "number" },
+      "close":     { "type": "number" },
+      "volume":    { "type": "number" },
+      "vwap":      { "type": "number" },
+      "source":    { "type": "string", "enum": ["yahoo", "alpaca", "binance", "mock"] }
+    }
+  },
+
+  "MacroSignal": {
+    "type": "object",
+    "description": "Output from Macro Agent — market regime assessment",
+    "required": ["timestamp", "regime", "confidence", "indicators"],
+    "properties": {
+      "timestamp":   { "type": "string", "format": "date-time" },
+      "regime":      { "type": "string", "enum": ["bull", "bear", "neutral", "crisis"] },
+      "confidence":  { "type": "number", "minimum": 0, "maximum": 1 },
+      "indicators": {
+        "type": "object",
+        "properties": {
+          "yield_curve_slope":   { "type": "number", "description": "10Y - 2Y spread in bps" },
+          "vix":                 { "type": "number" },
+          "gdp_growth_qoq":     { "type": "number" },
+          "cpi_yoy":            { "type": "number" },
+          "unemployment_rate":  { "type": "number" },
+          "fed_funds_rate":     { "type": "number" },
+          "credit_spread_hy":   { "type": "number" }
+        }
+      },
+      "llm_reasoning": { "type": "string", "description": "LLM-generated explanation" },
+      "agent_version": { "type": "string" }
+    }
+  },
+
+  "QuantSignal": {
+    "type": "object",
+    "description": "Output from Quant Agent — per-asset factor scores",
+    "required": ["timestamp", "symbol", "factor_scores", "composite_score", "rank"],
+    "properties": {
+      "timestamp":       { "type": "string", "format": "date-time" },
+      "symbol":          { "type": "string" },
+      "factor_scores": {
+        "type": "object",
+        "properties": {
+          "momentum_1m":   { "type": "number", "description": "z-score of 1-month return" },
+          "momentum_3m":   { "type": "number", "description": "z-score of 3-month return" },
+          "momentum_12m":  { "type": "number", "description": "z-score of 12-month return" },
+          "volatility":    { "type": "number", "description": "realized vol z-score (inverted)" },
+          "rsi_14":        { "type": "number" },
+          "volume_trend":  { "type": "number", "description": "20d vol / 60d vol ratio" },
+          "beta":          { "type": "number" }
+        }
+      },
+      "composite_score": { "type": "number", "description": "Weighted sum of factor z-scores" },
+      "rank":            { "type": "integer", "description": "Rank among universe (1 = best)" },
+      "percentile":      { "type": "number", "minimum": 0, "maximum": 100 },
+      "agent_version":   { "type": "string" }
+    }
+  },
+
+  "SentimentSignal": {
+    "type": "object",
+    "description": "Output from Sentiment Agent — NLP-derived sentiment per asset",
+    "required": ["timestamp", "symbol", "sentiment_score", "news_count"],
+    "properties": {
+      "timestamp":       { "type": "string", "format": "date-time" },
+      "symbol":          { "type": "string" },
+      "sentiment_score": { "type": "number", "minimum": -1, "maximum": 1 },
+      "sentiment_label": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+      "news_count":      { "type": "integer" },
+      "top_headlines": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title":     { "type": "string" },
+            "score":     { "type": "number" },
+            "source":    { "type": "string" },
+            "url":       { "type": "string" },
+            "published": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "model_used":    { "type": "string" },
+      "agent_version": { "type": "string" }
+    }
+  },
+
+  "AggregatedSignal": {
+    "type": "object",
+    "description": "Fused signal across all agents for one asset",
+    "required": ["timestamp", "symbol", "final_score", "action"],
+    "properties": {
+      "timestamp":      { "type": "string", "format": "date-time" },
+      "symbol":         { "type": "string" },
+      "macro_regime":   { "type": "string" },
+      "quant_score":    { "type": "number" },
+      "sentiment_score":{ "type": "number" },
+      "final_score":    { "type": "number", "description": "Weighted fusion score" },
+      "action":         { "type": "string", "enum": ["strong_buy", "buy", "hold", "sell", "strong_sell"] },
+      "weights_used": {
+        "type": "object",
+        "properties": {
+          "macro":     { "type": "number" },
+          "quant":     { "type": "number" },
+          "sentiment": { "type": "number" }
+        }
+      }
+    }
+  },
+
+  "RiskMetrics": {
+    "type": "object",
+    "description": "Portfolio-level risk assessment from Risk Manager",
+    "required": ["timestamp", "portfolio_id"],
+    "properties": {
+      "timestamp":          { "type": "string", "format": "date-time" },
+      "portfolio_id":       { "type": "string" },
+      "sharpe_ratio":       { "type": "number" },
+      "sortino_ratio":      { "type": "number" },
+      "max_drawdown":       { "type": "number", "description": "As positive fraction, e.g. 0.15 = 15% DD" },
+      "current_drawdown":   { "type": "number" },
+      "var_95":             { "type": "number", "description": "95% 1-day Value at Risk in dollars" },
+      "var_99":             { "type": "number" },
+      "cvar_95":            { "type": "number", "description": "Conditional VaR / Expected Shortfall" },
+      "beta_to_market":     { "type": "number" },
+      "volatility_annualized": { "type": "number" },
+      "concentration_hhi":  { "type": "number", "description": "Herfindahl-Hirschman Index" },
+      "leverage":           { "type": "number" },
+      "constraints_breached": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of constraint names that are breached"
+      },
+      "approved":           { "type": "boolean" }
+    }
+  },
+
+  "Portfolio": {
+    "type": "object",
+    "description": "Current portfolio state",
+    "required": ["portfolio_id", "created_at", "capital", "currency"],
+    "properties": {
+      "portfolio_id":  { "type": "string" },
+      "name":          { "type": "string" },
+      "created_at":    { "type": "string", "format": "date-time" },
+      "updated_at":    { "type": "string", "format": "date-time" },
+      "capital":       { "type": "number", "description": "Total portfolio value in base currency" },
+      "cash":          { "type": "number" },
+      "currency":      { "type": "string", "default": "USD" },
+      "positions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "symbol":          { "type": "string" },
+            "quantity":        { "type": "number" },
+            "avg_entry_price": { "type": "number" },
+            "current_price":   { "type": "number" },
+            "market_value":    { "type": "number" },
+            "weight":          { "type": "number", "description": "Fraction of portfolio" },
+            "unrealized_pnl":  { "type": "number" },
+            "unrealized_pnl_pct": { "type": "number" }
+          }
+        }
+      },
+      "target_weights": { "type": "object", "description": "symbol -> target weight mapping" },
+      "total_pnl":      { "type": "number" },
+      "total_return":   { "type": "number" },
+      "benchmark":      { "type": "string", "default": "SPY" },
+      "risk_tolerance": { "type": "string", "enum": ["conservative", "moderate", "aggressive"] }
+    }
+  },
+
+  "Trade": {
+    "type": "object",
+    "description": "A single simulated trade execution record",
+    "required": ["trade_id", "portfolio_id", "symbol", "side", "quantity", "price", "timestamp"],
+    "properties": {
+      "trade_id":      { "type": "string" },
+      "portfolio_id":  { "type": "string" },
+      "symbol":        { "type": "string" },
+      "side":          { "type": "string", "enum": ["buy", "sell"] },
+      "quantity":      { "type": "number" },
+      "price":         { "type": "number", "description": "Execution price after slippage" },
+      "limit_price":   { "type": "number" },
+      "slippage_bps":  { "type": "number", "description": "Slippage in basis points" },
+      "commission":    { "type": "number" },
+      "market_impact": { "type": "number" },
+      "gross_value":   { "type": "number" },
+      "net_value":     { "type": "number" },
+      "timestamp":     { "type": "string", "format": "date-time" },
+      "status":        { "type": "string", "enum": ["pending", "filled", "partial", "cancelled", "rejected"] },
+      "reason":        { "type": "string", "description": "Human-readable trigger reason" },
+      "signal_id":     { "type": "string", "description": "Reference to AggregatedSignal" },
+      "reasoning_chain": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+
+  "AgentLog": {
+    "type": "object",
+    "description": "Structured log entry for any agent execution",
+    "properties": {
+      "log_id":       { "type": "string" },
+      "agent_name":   { "type": "string" },
+      "run_id":       { "type": "string", "description": "Ties all agent logs for one pipeline run" },
+      "timestamp":    { "type": "string", "format": "date-time" },
+      "duration_ms":  { "type": "number" },
+      "input_hash":   { "type": "string" },
+      "output_summary": { "type": "string" },
+      "llm_tokens_used": { "type": "integer" },
+      "error":        { "type": ["string", "null"] },
+      "metadata":     { "type": "object" }
+    }
+  }
+}

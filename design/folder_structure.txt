@@ -1,0 +1,166 @@
+hedge_fund/
+│
+├── README.md
+├── pyproject.toml                  # Poetry / pip project config
+├── .env.example                    # Required env vars (never commit .env)
+├── docker-compose.yml              # MongoDB + API + optional Redis
+├── Makefile                        # dev, test, lint shortcuts
+│
+├── design/                         # Phase 1 design artifacts
+│   ├── schemas.json
+│   ├── agent_interfaces.md
+│   └── folder_structure.txt
+│
+├── config/
+│   ├── __init__.py
+│   ├── settings.py                 # Pydantic BaseSettings — loads .env
+│   └── constants.py                # Factor weights, risk limits, enums
+│
+├── db/
+│   ├── __init__.py
+│   ├── client.py                   # MongoDB async client (Motor)
+│   ├── repositories/
+│   │   ├── __init__.py
+│   │   ├── market_data.py          # CRUD for market_data collection
+│   │   ├── signals.py              # CRUD for signals collection
+│   │   ├── portfolio.py            # CRUD for portfolios collection
+│   │   ├── trades.py               # CRUD for trades collection
+│   │   ├── risk_metrics.py         # CRUD for risk_metrics collection
+│   │   └── agent_logs.py           # CRUD for agent_logs collection
+│   └── models/                     # Pydantic ODM models (Beanie)
+│       ├── __init__.py
+│       ├── asset.py
+│       ├── market_bar.py
+│       ├── signal.py
+│       ├── portfolio.py
+│       ├── trade.py
+│       ├── risk_metrics.py
+│       └── agent_log.py
+│
+├── data/
+│   ├── __init__.py
+│   ├── ingestion/
+│   │   ├── __init__.py
+│   │   ├── price_fetcher.py        # Yahoo Finance / yfinance wrapper
+│   │   ├── macro_fetcher.py        # FRED API wrapper
+│   │   └── news_fetcher.py         # NewsAPI / GNews wrapper
+│   ├── normalizer.py               # Clean + normalize raw → MarketBar
+│   └── pipeline.py                 # Orchestrates full data ingestion
+│
+├── agents/
+│   ├── __init__.py
+│   ├── base.py                     # Abstract BaseAgent with logging, timing
+│   ├── macro/
+│   │   ├── __init__.py
+│   │   ├── agent.py                # MacroAgent class
+│   │   ├── regime_classifier.py    # Rule + ML regime detection
+│   │   └── tests/
+│   │       ├── test_macro_agent.py
+│   │       └── fixtures/
+│   │           └── macro_input.json
+│   ├── quant/
+│   │   ├── __init__.py
+│   │   ├── agent.py                # QuantAgent class
+│   │   ├── factors.py              # Factor computation functions
+│   │   └── tests/
+│   │       ├── test_quant_agent.py
+│   │       └── fixtures/
+│   │           └── price_history.json
+│   ├── sentiment/
+│   │   ├── __init__.py
+│   │   ├── agent.py                # SentimentAgent class
+│   │   ├── nlp_model.py            # HuggingFace FinBERT wrapper
+│   │   └── tests/
+│   │       ├── test_sentiment_agent.py
+│   │       └── fixtures/
+│   │           └── news_items.json
+│   ├── risk/
+│   │   ├── __init__.py
+│   │   ├── agent.py                # RiskManagerAgent class
+│   │   ├── metrics.py              # VaR, Sharpe, drawdown calculations
+│   │   ├── constraints.py          # Constraint checking + enforcement
+│   │   └── tests/
+│   │       ├── test_risk_agent.py
+│   │       └── fixtures/
+│   │           └── portfolio_returns.json
+│   └── execution/
+│       ├── __init__.py
+│       ├── agent.py                # ExecutionAgent class
+│       ├── slippage.py             # Slippage + market impact models
+│       └── tests/
+│           ├── test_execution_agent.py
+│           └── fixtures/
+│               └── orders.json
+│
+├── orchestrator/
+│   ├── __init__.py
+│   ├── dag.py                      # LangGraph DAG definition
+│   ├── runner.py                   # Pipeline runner (run_id tracking)
+│   ├── signal_aggregator.py        # Fuses Macro + Quant + Sentiment
+│   ├── memory.py                   # Persistent memory (MongoDB-backed)
+│   └── tests/
+│       └── test_pipeline.py        # Integration test: full pipeline run
+│
+├── backtest/
+│   ├── __init__.py
+│   ├── engine.py                   # Historical simulation loop
+│   ├── performance.py              # Metrics: CAGR, Sharpe, alpha, beta
+│   ├── benchmark.py                # SPY / benchmark data + comparison
+│   └── tests/
+│       └── test_backtest.py
+│
+├── llm/
+│   ├── __init__.py
+│   ├── provider.py                 # Abstract LLM provider interface
+│   ├── huggingface.py              # HuggingFace inference (local + API)
+│   └── prompts/
+│       ├── macro_reasoning.txt
+│       ├── signal_explanation.txt
+│       └── trade_rationale.txt
+│
+├── explainability/
+│   ├── __init__.py
+│   └── chain_builder.py            # Assembles reasoning chain per trade
+│
+├── api/
+│   ├── __init__.py
+│   ├── main.py                     # FastAPI app entrypoint
+│   ├── dependencies.py             # DB session, auth injectors
+│   ├── middleware.py               # Logging, CORS, error handling
+│   └── routes/
+│       ├── __init__.py
+│       ├── strategy.py             # POST /run-strategy
+│       ├── portfolio.py            # GET /portfolio/{id}
+│       ├── signals.py              # GET /signals
+│       └── backtest.py             # POST /backtest
+│
+├── frontend/                       # React dashboard (Phase 8)
+│   ├── package.json
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── pages/
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Portfolio.tsx
+│   │   │   ├── Signals.tsx
+│   │   │   └── Backtest.tsx
+│   │   ├── components/
+│   │   │   ├── PortfolioChart.tsx
+│   │   │   ├── RiskMetricsPanel.tsx
+│   │   │   ├── TradeHistory.tsx
+│   │   │   └── ReasoningChain.tsx
+│   │   └── api/
+│   │       └── client.ts           # Typed API client
+│   └── public/
+│
+├── tests/
+│   ├── conftest.py                 # Shared fixtures, mock DB, mock LLM
+│   ├── integration/
+│   │   └── test_full_pipeline.py
+│   └── mocks/
+│       ├── mock_market_data.py
+│       └── mock_llm.py
+│
+└── scripts/
+    ├── seed_db.py                  # Load sample market data into MongoDB
+    ├── run_backtest.py             # CLI: run backtest on date range
+    └── run_pipeline.py             # CLI: one-shot pipeline run
