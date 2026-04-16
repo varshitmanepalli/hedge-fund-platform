@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # ── LLM / HuggingFace ────────────────────────────────────────────────────
     hf_api_token: str = ""
-    hf_inference_endpoint: str = "https://api-inference.huggingface.co/models"
+    hf_inference_endpoint: str = "https://router.huggingface.co/hf-inference/models"
     sentiment_model: str = "ProsusAI/finbert"
     macro_llm_model: str = "mistralai/Mistral-7B-Instruct-v0.3"
     use_local_llm: bool = False

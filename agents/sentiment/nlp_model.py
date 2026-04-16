@@ -46,6 +46,7 @@ class FinBERTSentimentModel:
     """
 
     _pipeline = None
+    _api_available: bool = True  # Track if remote API is reachable
 
     def _load_pipeline(self):
         if self._pipeline is not None:
@@ -70,8 +71,11 @@ class FinBERTSentimentModel:
 
         if settings.use_local_llm:
             return self._score_local(text)
-        else:
+        elif self._api_available:
             return self._score_api(text)
+        else:
+            # API already known to be unreachable — skip HTTP call
+            return SentimentScore(0.0, 0.0, 1.0)
 
     def _score_local(self, text: str) -> SentimentScore:
         self._load_pipeline()
@@ -116,6 +120,12 @@ class FinBERTSentimentModel:
             )
         except Exception as e:
             logger.warning(f"HF API sentiment failed, returning neutral: {e}")
+            # If we get a 404, the model is not deployed — stop retrying
+            if "404" in str(e):
+                logger.warning("FinBERT model not available on HF Inference API. "
+                               "Disabling remote calls for this session. "
+                               "Set USE_LOCAL_LLM=true or update SENTIMENT_MODEL.")
+                self._api_available = False
             return SentimentScore(0.0, 0.0, 1.0)
 
     def score_batch(self, texts: list[str]) -> list[SentimentScore]:

@@ -114,7 +114,9 @@ async def run_strategy(request: StrategyRequest, progress_callback=None) -> Stra
         _t = datetime.utcnow()
         agent = QuantAgent(run_id=s.run_id)
         price_data = {
-            sym: df.reset_index().rename(columns={"index": "timestamp"}).to_dict("records")
+            sym: df.reset_index().rename(
+                columns={df.index.name or "index": "timestamp"}
+            ).to_dict("records")
             for sym, df in s.ingestion_result.price_data.items()
         }
         s.quant_output = await agent.run(
