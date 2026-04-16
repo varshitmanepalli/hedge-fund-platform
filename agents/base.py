@@ -116,5 +116,5 @@ class BaseAgent(ABC, Generic[InputT, OutputT]):
     @staticmethod
     def _hash_input(input_data: BaseModel) -> str:
         """Deterministic hash of agent input for deduplication."""
-        raw = input_data.model_dump_json(sort_keys=True)
+        raw = json.dumps(input_data.model_dump(mode="json"), sort_keys=True)
         return hashlib.md5(raw.encode()).hexdigest()[:12]
